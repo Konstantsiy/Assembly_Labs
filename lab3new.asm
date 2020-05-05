@@ -1,22 +1,19 @@
 .model small
- 
 .stack 100h
- 
 .data
-        mes                 db      0Dh, 0Ah, 'element: $'
-        flag                db      0
-        bracket1            db      'array[', '$'
-        bracket2            db      ']=', '$'
-        CrLf                db      0Dh, 0Ah, '$'
-        arraySize           equ     30  
-        array               dw     arraySize dup (0)
+        flag                    db      0
+        bracket1                db      'array[', '$'
+        bracket2                db      ']=', '$'
+        CrLf                    db      0Dh, 0Ah, '$'
+        arraySize               equ     30
+        array                   dw      arraySize dup (0)
  
-        numberBuffer        db      7, 0, 7 dup(0)
+        numberBuffer            db      7, 0, 7 dup(0)
 
 
-        result              db      0dh, 0ah, "Array median: $"
-        emptyArrayError     db      0dh, 0ah, "Error: array is empty.$"
-        errorNumberMessage  db  "Error: incorrect number.", 0dh, 0ah, '$'
+        result                  db      0dh, 0ah, "Array median: $"
+        emptyArrayError         db      0dh, 0ah, "Error: array is empty.$"
+        errorNumberMessage      db      "Error: incorrect number.", 0dh, 0ah, '$'
  
 .code
 ;=========================================
@@ -25,10 +22,12 @@ _end macro
         int 21h
 endm    
 ;=========================================
-_print      macro str
+_print      macro str  
+        ;push ax
         lea dx, str
         mov ah, 09h
-        int 21h 
+        int 21h
+        ;pop ax 
 endm 
 ;=========================================
 _input      macro str
@@ -37,78 +36,68 @@ _input      macro str
       int 21h 
 endm 
 ;=========================================
-_terminate macro errorMessage
-        _print errorMessage
-        ;_end
-endm
+;_error macro errorMessage
+;        _print errorMessage
+;endm
 ;========================================= 
 main    proc       
         mov     ax,     @data
-        mov     ds,     ax
-        ;ГўГўГ®Г¤ Г¬Г Г±ГЁГўГ 
+        mov     ds,     ax      
+        
         mov     cx,     arraySize
         lea     dx,     [array]
         call    InputArray
-        ;Г±Г®Г°ГІГЁГ°Г®ГўГЄГ  Г¬Г Г±Г±ГЁГўГ  
         call    HoarSort
-        ;ГўГ»ГўГ®Г¤ Г¬Г Г±Г±ГЁГўГ 
         call    ShowArray
         _print CrLf  
-        call _findMedian
+        call _findMedian   
+        
         mov     ax, 4ch
         int     21h
 main    endp
 ;=========================================  
 InputArray      proc
-        push    ax
-        push    bx
-        push    cx
-        push    dx
-        push    si
-        push    di
+        push ax
+        push bx
+        push cx
+        push dx
+        push si
+        push di
  
-        jcxz    @@Exit          ;ГҐГ±Г«ГЁ Г¬Г Г±Г±ГЁГў ГЇГіГ±ГІГ®Г© - Г§Г ГўГҐГ°ГёГЁГІГј
+        ;jcxz @@Exit;         если массив пустой (cx = 0) - завершить
  
-        mov     si,     1       ;ГЁГ­Г¤ГҐГЄГ± ГЅГ«ГҐГ¬ГҐГ­ГІГ  Г¬Г Г±Г±ГЁГўГ 
-        mov     di,     dx      ;Г Г¤Г°ГҐГ± ГІГҐГЄГіГ№ГҐГЈГ® ГЅГ«ГҐГ¬ГҐГ­ГІГ  Г¬Г Г±Г±ГЁГўГ 
+        mov si, 0;      индекс элемента массива
+        mov di, dx;     адрес текущего элемента массива
         mov cx, arraySize
         @@ForI:
-                ;ГўГ»ГўГ®Г¤ ГЇГ°ГЁГЈГ«Г ГёГҐГ­ГЁГї ГўГўГ®Г¤Г  ГЅГ«ГҐГ¬ГҐГ­ГІГ 
                 _print bracket1
-                mov     ax,     si
+                mov ax, si
                 call    Show_AX
                 _print bracket2
-                ;ГўГўГ®Г¤ Г·ГЁГ±Г«Г 
-                _input numberBuffer; ГўГўГ®Г¤ ГЅГ«ГҐГ¬ГҐГ­ГІГ  Г¬Г Г±Г±ГЁГўГ 
+                _input numberBuffer;    ввод элемента массива
                 _print CrLf; '\n'
  
-                push    si
-                lea     si, numberBuffer+1 ; ГЇГ°ГҐГ®ГЎГ°Г Г§Г®ГўГ Г­ГЁГҐ Г±ГІГ°Г®ГЄГЁ Гў Г·ГЁГ±Г«Г®
-                ;lea     di, Numer
-                call    Str2Num
-                pop     si
+                push si
+                lea si, numberBuffer+1; преобразование строки в число
+                call Str2Num
+                pop si
  
-                ; ГЇГ°Г®ГўГҐГ°ГЄГ  Г­Г  Г®ГёГЁГЎГЄГі
-                jnc     @@NoError
- 
-                ; ГҐГ±Г«ГЁ ГҐГ±ГІГј Г®ГёГЁГЎГЄГ  ГўГўГ®Г¤Г  - ГЇГ®ГўГІГ®Г°ГЁГІГј ГўГўГ®Г¤
-                jmp     @@ForI
- 
-                ; ГҐГ±Г«ГЁ Г­ГҐГІ Г®ГёГЁГЎГЄГЁ ГўГўГ®Г¤Г  - Г±Г®ГµГ°Г Г­ГЁГІГј Г·ГЁГ±Г«Г®
+                
+                jnc @@NoError;          проверка на ошибку
+                jmp @@ForI;             если есть ошибка ввода - повторить ввод
                 @@NoError:
-                ;Г±Г®ГµГ°Г Г­ГҐГ­ГЁГҐ ГўГўГҐГ¤ВёГ­Г­Г®ГЈГ® Г·ГЁГ±Г«Г®Г  Гў Г¬Г Г±Г±ГЁГўГҐ
-                ;mov    [di],   ax
-                ;ГЇГҐГ°ГҐГµГ®Г¤ ГЄ Г±Г«ГҐГ¤ГіГѕГ№ГҐГ¬Гі ГЅГ«ГҐГ¬ГҐГ­ГІГі
-                inc     si
-                add     di,     2
+                ;                       сохранение введённого числоа в массиве
+                ;mov [di], ax
+                inc si;                 переход к следующему элементу
+                add di, 2
         loop    @@ForI
 @@Exit:
-        pop     di
-        pop     si
-        pop     dx
-        pop     cx
-        pop     bx
-        pop     ax
+        pop di
+        pop si
+        pop dx
+        pop cx
+        pop bx
+        pop ax
         ret
 InputArray      endp
 ;======================
@@ -119,8 +108,8 @@ _invert         macro
         mov flag, 1
 endm 
 ;======================
-_findMedian     proc
-        mov si, 28 
+_findMedian     proc 
+        mov si, 28
         mov ax, array[si]
         mov flag, 0 
         cmp ax, 0 
@@ -146,46 +135,45 @@ _findMedian     proc
         push ax
         _print result
         pop ax
-        call Show_AX                
+        call Show_AX 
+        _end               
 _findMedian     endp
 ;====================== 
 
 ShowArray       proc
-        push    ax
-        push    bx
-        push    cx
-        push    dx
-        push    si
-        push    di
+        push ax
+        push bx
+        push cx
+        push dx
+        push si
+        push di
  
-        jcxz    @@Exit1          ;ГҐГ±Г«ГЁ Г¬Г Г±Г±ГЁГў ГЇГіГ±ГІГ®Г© - Г§Г ГўГҐГ°ГёГЁГІГј
+        jcxz @@Exit1 ;если массив пустой - завершить
  
-        mov     si,     1       ;ГЁГ­Г¤ГҐГЄГ± ГЅГ«ГҐГ¬ГҐГ­ГІГ  Г¬Г Г±Г±ГЁГўГ 
-        mov     di,     dx      ;Г Г¤Г°ГҐГ± ГІГҐГЄГіГ№ГҐГЈГ® ГЅГ«ГҐГ¬ГҐГ­ГІГ  Г¬Г Г±Г±ГЁГўГ 
+        mov si, 1  ;индекс элемента массива
+        mov di, dx ;адрес текущего элемента массива
         @@ForI2:
-                mov     ax,     [di]
-                call    Show_AX
-                mov     ah,     02h
-                mov     dl,     ' '
-                int     21h
-                ;ГЇГҐГ°ГҐГµГ®Г¤ ГЄ Г±Г«ГҐГ¤ГіГѕГ№ГҐГ¬Гі ГЅГ«ГҐГ¬ГҐГ­ГІГі
-                inc     si
-                add     di,     2
+                mov ax, [di]
+                call Show_AX
+                mov ah, 02h
+                mov dl, ' '
+                int 21h
+                ;переход к следующему элементу
+                inc si
+                add di, 2
         loop    @@ForI2
 @@Exit1:
-        pop     di
-        pop     si
-        pop     dx
-        pop     cx
-        pop     bx
-        pop     ax
+        pop di
+        pop si
+        pop dx
+        pop cx
+        pop bx
+        pop ax
         
         ret
 ShowArray       endp
  
-; ГўГ»ГўГ®Г¤ГЁГІ Г§Г­Г ГЄГ®ГўГ®ГҐ 16-Г°Г Г§Г°ГїГ¤Г­Г®ГҐ Г·ГЁГ±Г«Г® ГЁГ§ Г°ГҐГЈГЁГ±ГІГ°Г  AX Г­Г  ГЅГЄГ°Г Г­
-; ГўГµГ®Г¤Г­Г»ГҐ Г¤Г Г­Г­Г»ГҐ:
-; ax - Г·ГЁГ±Г«Г® Г¤Г«Гї Г®ГІГ®ГЎГ°Г Г¦ГҐГ­ГЁГї
+; ax - число для отображения
 Show_AX proc
         push ax
         push bx
@@ -194,16 +182,14 @@ Show_AX proc
         push di
  
         mov cx, 10
-        xor di, di      ; di - ГЄГ®Г«. Г¶ГЁГґГ° Гў Г·ГЁГ±Г«ГҐ
+        xor di, di;     di - количество цифр в числе
  
-        ; ГҐГ±Г«ГЁ Г·ГЁГ±Г«Г® Гў ax Г®ГІГ°ГЁГ¶Г ГІГҐГ«ГјГ­Г®ГҐ, ГІГ®
-        ;1) Г­Г ГЇГҐГ·Г ГІГ ГІГј '-'
-        ;2) Г±Г¤ГҐГ«Г ГІГј ax ГЇГ®Г«Г®Г¦ГЁГІГҐГ«ГјГ­Г»Г¬
-        or ax, ax
-        jns @@Conv
+        ; если число в ax отрицательное, то печакм минус и делаем число в ax положительным
+        or ax, ax;      если < 0, то в SF заносится 1
+        jns @@Conv;     проверяет SF
         push ax
         mov dx, '-'
-        mov ah, 2       ; ah - ГґГіГ­ГЄГ¶ГЁГї ГўГ»ГўГ®Г¤Г  Г±ГЁГ¬ГўГ®Г«Г  Г­Г  ГЅГЄГ°Г Г­
+        mov ah, 2;      функция вывода символа на экран
         int 21h
         pop ax
  
@@ -211,18 +197,18 @@ Show_AX proc
  
 @@Conv:
         xor dx, dx
-        div cx           ; Гў dl ГЁГ¤ВёГІ Г®Г±ГІГ ГІГ®ГЄ Г®ГІ Г¤ГҐГ«ГҐГ­ГЁГї Г­Г  10
-        add dl, '0'     ; ГЇГҐГ°ГҐГўГ®Г¤ Гў Г±ГЁГ¬ГўГ®Г«ГјГ­Г»Г© ГґГ®Г°Г¬Г ГІ
+        div cx;         в dl идёт остаток от деления на 10
+        add dl, '0';    перевод в символьный формат
         inc di
-        push dx              ; Г±ГЄГ«Г Г¤Г»ГўГ ГҐГ¬ Гў Г±ГІГҐГЄ
+        push dx;        складываем в стек
         or ax, ax
         jnz @@Conv
-        ; ГўГ»ГўГ®Г¤ГЁГ¬ ГЁГ§ Г±ГІГҐГЄГ  Г­Г  ГЅГЄГ°Г Г­
+        ; выводим из стека на экран
 @@Show:
-        pop dx              ; dl = Г®Г·ГҐГ°ГҐГ¤Г­Г®Г© ГўГ»ГўГ®Г¤ГЁГ¬Г»Г© Г±ГЁГ¬ГўГ®Г«
-        mov ah, 2       ; ah - ГґГіГ­ГЄГ¶ГЁГї ГўГ»ГўГ®Г¤Г  Г±ГЁГ¬ГўГ®Г«Г  Г­Г  ГЅГЄГ°Г Г­
+        pop dx;         dl = очередной выводимый символ
+        mov ah, 2;      ah - функция вывода символа на экран
         int 21h
-        dec di              ; ГЇГ®ГўГІГ®Г°ГїГҐГ¬ ГЇГ®ГЄГ  di != 0
+        dec di;         повторяем пока di != 0
         jnz @@Show
  
         pop di
@@ -232,12 +218,10 @@ Show_AX proc
         pop ax
         ret
 Show_AX endp
- 
-; ГЇГ°ГҐГ®ГЎГ°Г Г§Г®ГўГ Г­ГЁГї Г±ГІГ°Г®ГЄГЁ Гў Г§Г­Г ГЄГ®ГўГ®ГҐ Г·ГЁГ±Г«Г®
-;si - Г±ГІГ°Г®ГЄГ  Г± Г·ГЁГ±Г«Г®Г¬
-; di - Г Г¤Г°ГҐГ± Г·ГЁГ±Г«Г 
-; Г­Г  ГўГ»ГµГ®Г¤ГҐ
-; di - Г·ГЁГ±Г«Г®
+
+; si - действительная длина введённой строки с числом 
+; di - адрес числа
+; выходное число заносится в di
 Str2Num proc
         push ax
         push bx
@@ -260,18 +244,18 @@ Str2Num proc
         inc si
         dec cx
 @@IsPositive:
-        jcxz @@Error; ГҐГ±Г«ГЁ ГЇГ®Г±Г«ГҐ '-' Г­ГЁГ·ГҐГЈГ® Г­ГҐ ГЁГ¤ГҐГІ Г«ГЁГЎГ® ГҐГ±Г«ГЁ Г­ГҐГІ ГўГ®Г®ГЎГ№ГҐ Г­ГЁГ·ГҐГЈГ®
+        jcxz @@Error;   если после '-' ничего не идет либо если нет вообще ничего
  
         mov bx, 10
         xor ax, ax
  
 @@Loop:
-        mul bx         ; ГіГ¬Г­Г®Г¦Г ГҐГ¬ ax Г­Г  10 ( dx:ax=ax*bx )
-        mov [di], ax   ; ГЁГЈГ­Г®Г°ГЁГ°ГіГҐГ¬ Г±ГІГ Г°ГёГҐГҐ Г±Г«Г®ГўГ®
-        cmp dx, 0      ; ГЇГ°Г®ГўГҐГ°ГїГҐГ¬, Г°ГҐГ§ГіГ«ГјГІГ ГІ Г­Г  ГЇГҐГ°ГҐГЇГ®Г«Г­ГҐГ­ГЁГҐ
+        mul bx;         умножаем ax на 10 (старшее слово записывается в dx)
+        mov [di], ax;   игнорируем старшее слово
+        cmp dx, 0;      проверяем результат на переполнение
         jnz @@Error
  
-        mov al, [si]   ; ГЏГ°ГҐГ®ГЎГ°Г Г§ГіГҐГ¬ Г±Г«ГҐГ¤ГіГѕГ№ГЁГ© Г±ГЁГ¬ГўГ®Г« Гў Г·ГЁГ±Г«Г®
+        mov al, [si];   преобразуем следующий символ в число
         cmp al, '0'
         jb @@Error
         cmp al, '9'
@@ -279,15 +263,14 @@ Str2Num proc
         sub al, '0'
         xor ah, ah
         add ax, [di]
-        jc @@Error    ; Г…Г±Г«ГЁ Г±ГіГ¬Г¬Г  ГЎГ®Г«ГјГёГҐ 65535
+        jc @@Error;     если сумма больше 65535
         inc si
- 
         loop @@Loop
  
         pop si
         push si
         or ax, ax
-        js @@Error
+        js @@Error;     проверяем SF (если есть знак)
         cmp [si+1], byte ptr '-'
         jne @@Positive
         neg ax
@@ -295,113 +278,114 @@ Str2Num proc
         jns  @@Error
 @@Positive:
         mov  [di], ax
-        clc
-        pop  si
-        pop  es
-        pop  ds
-        pop  dx
-        pop  cx
-        pop  bx
-        pop  ax
+        clc;            очистка флага переноса         
+        pop si
+        pop es
+        pop ds
+        pop dx
+        pop cx
+        pop bx
+        pop ax
         ret
 @@Error:
-        _terminate errorNumberMessage
-        xor  ax, ax
-        mov  [di], ax
+        _print errorNumberMessage
+        xor ax, ax
+        mov [di], ax
         stc
-        pop  si
-        pop  es
-        pop  ds
-        pop  dx
-        pop  cx
-        pop  bx
-        pop  ax
+        pop si
+        pop es
+        pop ds
+        pop dx
+        pop cx
+        pop bx
+        pop ax
         ret
 Str2Num endp
  
-;Г‘Г®Г°ГІГЁГ°Г®ГўГЄГ  Г¬Г Г±Г±ГЁГўГ  Г±Г«Г®Гў (word)
-;cx - ГЄГ®Г«ГЁГ·ГҐГ±ГІГўГ® ГЅГ«ГҐГ¬ГҐГ­ГІГ®Гў Гў Г¬Г Г±Г±ГЁГўГҐ
-;dx - Г Г¤Г°ГҐГ± Г¬Г Г±Г±ГЁГўГ  Г±Г«Г®Гў
+;cx - количество элементов в массиве
+;dx - адрес массива слов
 HoarSort       proc
-        push    ax
-        push    bx
-        push    cx
-        push    dx
-        push    si
-        push    di
+        push ax
+        push bx
+        push cx
+        push dx
+        push si
+        push di
         ;HoarSort(array, 0, arraySize-1)
-        mov     bx,     dx
-        mov     si,     0
-        mov     di,     cx
-        dec     di
-        shl     di,     1
-        call    _HoarSort
+        mov bx, dx
+        mov si, 0
+        mov di, cx
+        dec di
+        shl di, 1
+        call _HoarSort
  
-        pop     di
-        pop     si
-        pop     dx
-        pop     cx
-        pop     bx
-        pop     ax
+        pop di
+        pop si
+        pop dx
+        pop cx
+        pop bx
+        pop ax
         ret
 HoarSort       endp
-;  si    - Г Г¤Г°ГҐГ± Г«ГҐГўГ®Г© ГЈГ°Г Г­ГЁГ¶Г» Г¬Г Г±Г±ГЁГўГ 
-;  di    - Г Г¤Г°ГҐГ± ГЇГ°Г ГўГ®Г© ГЈГ°Г Г­ГЁГ¶Г» Г¬Г Г±Г±ГЁГўГ 
+;  si    - адрес левой границы массива
+;  di    - адрес правой границы массива
+; (возможная проблема с декрементом di)
 _HoarSort   proc                   
-        push    ax             
-        push    bx
-        push    cx
-        push    dx
-        push    si
-        push    di
+        push ax             
+        push bx
+        push cx
+        push dx
+        push si
+        push di
         
-        cmp     si,     di   
-        jae     @@StopQSort 
-        push    di
-        push    si
-    
-        mov     dx, di    
-        mov     cx, si
-        shr     si, 1
-        shr     di, 1
-        sub     di, si
-        shr     di, 1
-        add     si, di
-        shl     si, 1
-        mov     ax, [bx+si]
-        mov     si, cx
-        mov     di, dx
+        cmp si, di   
+        jae @@StopHoarSort;     если >= 
+        push di
+        push si
+        ;               int middle = (left + right) / 2 - делим на 2, т.к. в слове 2 байта;
+        mov dx, di    
+        mov cx, si
+        shr si, 1
+        shr di, 1
+        sub di, si;             находим порядковый номер последнего элемента массива (длина выделенной части массива)
+        shr di, 1;              делим ещё раз, чтобы найти конкретную середину выделенной части массива
+        add si, di;             добираемся до порядкового номра среднего элемента выделенной части 
+        shl si, 1 ; * 2
+        mov ax, [bx+si];        сохраняем реального смещение среднего элемента выделенной части
+        mov si, cx;             левая граница
+        mov di, dx;             правая граница
         @@DoWhile:     
-                sub si, 2
-                @@WhileLeft:
-                        add si, 2
-                        mov cx, [bx+si]
-                        cmp ax, [bx+si]
-                jg @@WhileLeft
+                sub si, 2;      отнимаем, чтобы избежать лишнего добавления
+                @@WhileLeft:;   ищем первый элемент, который будет больше среднего
+                        add si, 2;добавляем смещение
+                        mov cx, [bx+si]; 
+                        cmp ax, cx 
+                        jg @@WhileLeft; продолжаем цикл, пока ax > cx
             
-                add di, 2
-                @@WhileRight:
+                add di, 2 
+                @@WhileRight:;  ищем первый элемент, который будет меньше среднего
                         sub di, 2
                         mov cx, [bx+di]
                         cmp ax, [bx+di]
-                jl      @@WhileRight
-                                ;          
-                cmp si, di
+                        jl @@WhileRight; продолжаем цикл пока ax < cx
+                                   
+                cmp si, di;     если не нашли нужных элементов, значит этот участок отсортирован
                 ja  @@BreakDoWhile
                             
-                mov cx, [bx+si]
+                mov cx, [bx+si];меняем местами найденные элементы
                 mov dx, [bx+di]
                 mov [bx+si], dx
                 mov [bx+di], cx  
  
                                
                 add  si, 2
+                cmp  di, 0
+                je   Mark1;     проверям исключительною ситуацию нулевой границы левой группы              
+                sub  di, 2;     может возникнуть переполнение при нулевом DI и последующее зацикливание;
                                
-                sub  di, 2
-                               
-                                
+                Mark1:    
                 cmp  si, di
-                jbe  @@DoWhile
+                jbe  @@DoWhile; если границы перемахнут друг за друга, то прекращаем сортировку (если ниже или равно)
         @@BreakDoWhile:
                                 
         mov cx, si
@@ -412,7 +396,7 @@ _HoarSort   proc
         pop di
         call  _HoarSort
                                 
-@@StopQSort:
+@@StopHoarSort:
         pop di
         pop si
         pop dx
@@ -420,6 +404,5 @@ _HoarSort   proc
         pop bx
         pop ax
         ret
-_HoarSort   endp                    ;} 
-;====================================
+_HoarSort   endp                    
 end     main
