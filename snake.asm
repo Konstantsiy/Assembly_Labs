@@ -261,7 +261,7 @@ endp
 ;=================================================================
 ;=================================================================
 ;сдвигаем тело змейки в массиве и закрашиваем последний элемент
-MoveSnake proc              
+UpdateSnake proc              
 	push ax                 
 	push bx                 
 	push cx                 
@@ -397,7 +397,7 @@ boost:
 	jmp emptyBuffer                      
                                  
 emptyBuffer:                  
-	call MoveSnake;                 передвигаем змейку на экране
+	call UpdateSnake;                 передвигаем змейку на экране
 	mov bx, snakeBody;              помещаем в bx голову змеи  
 	
 checkSymbolAgain:                
