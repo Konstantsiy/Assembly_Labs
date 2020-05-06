@@ -17,8 +17,8 @@ fieldSizeY        equ   19;
 consoleSizeX      equ   80;
 consoleSizeY      equ   25;
 
-consoleCageSize   equ   2; длина клетки консоли
-scoreSize         equ   4; длина блока счёта
+consoleCageSize   equ   2; 
+scoreSize         equ   4; 
 
 videoMemoryStart        dw   0B800h; смещение начала видеобуфера
 dataStart    dw 0000h             
@@ -121,27 +121,27 @@ deltaTime         equ   1;
 _clearScreen macro          
 	push ax ;               Сохраняем значение ax
 	mov ax, 0003h;          00 - установить видеорежим, очистить экран. 03h - режим 80x25
-	int 10h;                Вызов прерывания для исполнения команды
-	pop ax;                 Восстанавливаем значение регистра ax
+	int 10h;                вызов прерывания для исполнения команды
+	pop ax;                 восстанавливаем значение регистра ax
 endm  
 ;=================================================================
 ;############################################################
 main:
 	mov ax, @data	       
 	mov ds, ax              
-	mov dataStart, ax;             загружаем начальные данные
+	mov dataStart, ax;                   загружаем начальные данные
 	mov ax, videoMemoryStart;            загружаем в ax код начала вывода в видеобуффер
 	mov es, ax            
 	xor ax, ax            
                             
-	_clearScreen;                  очищаем консоль
+	_clearScreen;                
                             
-	call ScreenInitialization;     инициализируем экран
+	call ScreenInitialization;     
                             
-	call MainGameCycle;            переходим в основной цикл игры
+	call MainGameCycle;           
                           
 to_close:    
-	mov ah,7h;                     7h - консольный ввод без эха (ожидаем нажатия клавиши для выхода из приложения)
+	mov ah,7h;            
         int 21h                
 
 esc_exit:    
@@ -166,8 +166,8 @@ endm
 ;=================================================================
 ;Результат в cx:dx          
 _getTimerValue macro         
-	push ax;        Сохраняем значения регистра ax             
-	mov ax, 00h;    Получаем значение времени
+	push ax;        сохраняем значения регистра ax             
+	mov ax, 00h;    получаем значение времени
 	int 1Ah;                                
 	pop ax   
 endm  
@@ -181,9 +181,9 @@ SpawnWall proc
  loopSpawnWall:              
 	mov bx, [si];             загружаем в si очередной символ 
 	add si, pointSize 
-	              ;           получаем позицию в видеобуффере
-	call GetOffset;           получаем смещение выводимого символа в видеобуффере
-	mov di, bx;               загружаем в di позицию
+	              ;         
+	call GetOffset;        
+	mov di, bx;               
 	mov ax, wallSymbol;       загружаем в ax выводимый символ
 	stosw;                    выводим
 	loop loopSpawnWall    
@@ -198,7 +198,7 @@ DeleteWall proc
  mov cx, wallSize
  mov si, offset realWall            
  loopDeleteWall:           
-	mov bx, [si];           загружаем в si очередной символ
+	mov bx, [si];          
 	add si, pointSize        
 	
 	call GetOffset;         получаем смещение выводимого символа в видеобуффере
@@ -212,29 +212,27 @@ endp
 ;=================================================================
 ;=================================================================
 ScreenInitialization proc          
-	mov si, offset screen;  в si загружаем 
-	xor di, di;             обнуляем di
-                  ;             ds:si указывает на символы, которые мы будем выводить
-                  ;             es:di указывает на di-ый символ консоли  
-                  
+	mov si, offset screen;  
+	xor di, di;            
+
 	mov cx, consoleSizeX*consoleSizeY;      загружаем в cx кол-во символов в консоли                                   
-	rep movsw;              переписываем последовательно все символы из ds:si в консоль es:di 
+	rep movsw;             
 	xor ch, ch;                     
 	mov cl, snakeCurrentSize;               загружаем в cl размер змейки
 	mov si, offset snakeBody;               в si загружаем смещения начала тела змейки
                
-loopInitSnake:;                 цикл, в котором мы выводим тело змейки
-	mov bx, [si];           загружаем в bx очередной символ тела змейки
-	add si, pointSize;      добавляем к si PointSize, т.к. каждая точка занимает 2 байта (цвет + символ)
+loopInitSnake:;               
+	mov bx, [si];         
+	add si, pointSize;    
 	
-	call getOffset;         получаем смещение выводимого символа в видеобуффере 
+	call getOffset;      
 	
 	mov di, bx;             загружаем в di позицию
 	mov ax, snakeBodySymbol;загружаем в ax выводимый символ
-	stosw;                  выводим (сохраняем символ по адресу es:di)
+	stosw;                  
 	loop loopInitSnake
      
-	call SpawnApple; генерируем яблоко в случайных координатах
+	call SpawnApple; 
 	ret                     
 endp             
 ;=================================================================   
@@ -275,29 +273,29 @@ MoveSnake proc
 	xor ah, ah;            
 	mov cx, ax;             
 	mov bx, pointSize;      
-	mul bx;                 теперь в ax реальная позиция в памяти относительно начала массива
+	mul bx;              
 	mov di, offset snakeBody; загружаем в di смещение головы змейки
-	add di, ax;             di - адрес следующего после последнего элемента массива
-	mov si, di;             згружаем di в si
-	sub si, pointSize;      si - адрес последнего элемента массива
+	add di, ax;            
+	mov si, di;             
+	sub si, pointSize;     
                        
 	push di           
 	                       ;удаляем конец змейки с экрана
-	mov es, videoMemoryStart;     загружаем в es смещение видеобуффера
-	mov bx, ds:[si];        загружаем в bx последний элемент змейки 
+	mov es, videoMemoryStart;    
+	mov bx, ds:[si];      
 	
-	call GetOffset;         вычисляем ее позицию на экране  
+	call GetOffset;         
 	
-	mov di, bx;             заносим позицию, которую будем очищать в di
-	mov ax, space;          загружаем в ax пустую клетку (пробел)
-	stosw;                  записываем (пересылаем содерджимое ax в es:di)
+	mov di, bx;            
+	mov ax, space;       
+	stosw;                
                             
 	pop di
                            
 	mov es, dataStart;      для работы с данными (до этого es указывал на видеобуффер)
-	std;                    идем от конца к началу
-	rep movsw;              переписываем символы из ds:si в es:di (si - предпоследний элемент змейки, di - последний элемент)
-	         ;              таким образом смещаем всю змейку на 1 шаг
+	std;                   
+	rep movsw;             
+	      
 	mov bx, snakeBody;      загружаем в bx позицию головы змейки
                     
 	add bh, moveAlongX;     обновляем координаты головы
