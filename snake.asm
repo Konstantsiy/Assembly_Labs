@@ -2,15 +2,13 @@
 .stack 100h
 .data
 
-;êëàâèøè
+;клавиши
 ;-----------------------------
 exitKey           equ   01h;  Esc
 moveUpKey         equ   11h;  W
 moveDownKey       equ   1Fh;  S
 moveLeftKey       equ   1Eh;  A
 moveRightKey      equ   20h;  D
-speedUpKey        equ   48h;  Up
-speedDownKey      equ   50h;  Down 
 ;-----------------------------
      
 fieldSizeX        equ   76;
@@ -19,13 +17,13 @@ fieldSizeY        equ   19;
 consoleSizeX      equ   80;
 consoleSizeY      equ   25;
 
-consoleCageSize   equ   2; äëèíà êëåòêè êîíñîëè
-scoreSize         equ   4; äëèíà áëîêà ñ÷¸òà
+consoleCageSize   equ   2; длина клетки консоли
+scoreSize         equ   4; длина блока счёта
 
-videoMemoryStart        dw   0B800h; ñìåùåíèå íà÷àëà âèäåîáóôåðà
+videoMemoryStart        dw   0B800h; смещение начала видеобуфера
 dataStart    dw 0000h             
 
-;ñòåíà
+;стена
 ;------------------------------------ 
 verticalWall            equ     0FBAh;
 horizontalWall          equ     0FCDh;
@@ -36,18 +34,21 @@ bottomRightCorner       equ     0FBCh;
 wallCrossing            equ     0FCAh;
 ;------------------------------------ 
 
-space                   equ     0020h;  Ïóñòîé áëîê ñ ÷åðíûì ôîíîì
-snakeBodySymbol         equ     0A6Fh;  Ñèìâîë òåëà çìåéêè
-appleSymbol             equ     0B0Fh;  Ñèìâîë ÿáëîêà
-wallSymbol              equ     6023h;   
+space                   equ     0020h;  
+snakeBodySymbol         equ     0A6Fh;  
+appleSymbol             equ     0B40h;  
+wallSymbol              equ     0423h;               
+     
+flag                    dw      0; 
+flag1                   dw      0;
 
-;áëîêè
+;блоки
 ;------------------------------------
-vtSpc   equ     05F20h; ïðîáåë íà ôèîëåòîâîì ôîíå 
-blSpc   equ     03F20h; ïðîáåë íà ñèíåì ôîíå
+vtSpc   equ     05F20h; пробел на фиолетовом фоне 
+blSpc   equ     01F20h; пробел на синем фоне
 ;------------------------------------
 
-;ýêðàí
+;экран
 ;----------------------------------------------------------------------------------
 screen          dw consoleSizeX dup(space) 
                 dw space, upperLeftCorner, 13 dup(horizontalWall), 0FCBh, 10 dup(horizontalWall), 0FCBh, 9 dup(horizontalWall), 0FCBh, 11 dup(horizontalWall), 0FCBh, 11 dup(horizontalWall), 0FCBh, 17 dup(horizontalWall), upperRightCorner, space
@@ -55,10 +56,10 @@ screen          dw consoleSizeX dup(space)
           score dw scoreSize dup(05F30h), vtSpc, verticalWall  
                 dw vtSpc, 05F53h, 05F70h, 2 dup(05F65h), 05F64h, 05F3Ah, vtSpc
           speed dw 05F31h, vtSpc, verticalWall         
-                dw blSpc, 03F57h, blSpc, 03FC4h, blSpc, 03F55h, 03F70h, 03F18h, blSpc, verticalWall
-                dw blSpc, 03F53h, blSpc, 03FC4h, blSpc, 03F44h, 03F6Fh, 03F77h ,03F6Eh, 03F19h, blSpc, verticalWall
-                dw blSpc, 03F41h, blSpc, 03FC4h, blSpc, 03F4Ch, 03F65h, 03F66h ,03F74h, 03F1Bh, blSpc, verticalWall
-                dw blSpc, 03F44h, blSpc, 03FC4h, blSpc, 03F52h, 03F69h, 03F67h ,03F68h, 03F74h, 03F1Ah, 6 dup(blSpc), verticalWall, space
+                dw blSpc, 01F57h, blSpc, 01FC4h, blSpc, 01F55h, 01F70h, 01F18h, blSpc, verticalWall
+                dw blSpc, 01F53h, blSpc, 01FC4h, blSpc, 01F44h, 01F6Fh, 01F77h ,01F6Eh, 01F19h, blSpc, verticalWall
+                dw blSpc, 01F41h, blSpc, 01FC4h, blSpc, 01F4Ch, 01F65h, 01F66h ,01F74h, 01F1Bh, blSpc, verticalWall
+                dw blSpc, 01F44h, blSpc, 01FC4h, blSpc, 01F52h, 01F69h, 01F67h ,01F68h, 01F74h, 01F1Ah, 6 dup(blSpc), verticalWall, space
                 
                 dw space, 0FCCh, 13 dup(horizontalWall), 0FCAh, 10 dup(horizontalWall), 0FCAh, 9 dup(horizontalWall), 0FCAh, 11 dup(horizontalWall), 0FCAh, 11 dup(horizontalWall), 0FCAh, 17 dup(horizontalWall), 0FB9h, space  
                 dw space, verticalWall, fieldSizeX dup(space), verticalWall, space   
@@ -100,7 +101,7 @@ wall4 dw 0FCFEh, 0FDFEh, 0FEFEh, 0FEFFh, 0FF00h, 0FF01h, 0FF02h, 0002h, 0102h, 0
 wallForm        dw      wallSize dup(0)
 realWall        dw      wallSize dup(0)
 
-;óïðàâëåíèå
+;управление
 ;--------------
 positiveValue     equ   01h;
 stopValue         equ   00h; 
@@ -118,29 +119,29 @@ deltaTime         equ   1;
 .code        
 ;================================================================= 
 _clearScreen macro          
-	push ax ;               Ñîõðàíÿåì çíà÷åíèå ax
-	mov ax, 0003h;          00 - óñòàíîâèòü âèäåîðåæèì, î÷èñòèòü ýêðàí. 03h - ðåæèì 80x25
-	int 10h;                Âûçîâ ïðåðûâàíèÿ äëÿ èñïîëíåíèÿ êîìàíäû
-	pop ax;                 Âîññòàíàâëèâàåì çíà÷åíèå ðåãèñòðà ax
+	push ax ;               Сохраняем значение ax
+	mov ax, 0003h;          00 - установить видеорежим, очистить экран. 03h - режим 80x25
+	int 10h;                Вызов прерывания для исполнения команды
+	pop ax;                 Восстанавливаем значение регистра ax
 endm  
 ;=================================================================
 ;############################################################
 main:
 	mov ax, @data	       
 	mov ds, ax              
-	mov dataStart, ax;             çàãðóæàåì íà÷àëüíûå äàííûå
-	mov ax, videoMemoryStart;            çàãðóæàåì â ax êîä íà÷àëà âûâîäà â âèäåîáóôôåð
+	mov dataStart, ax;             загружаем начальные данные
+	mov ax, videoMemoryStart;            загружаем в ax код начала вывода в видеобуффер
 	mov es, ax            
 	xor ax, ax            
                             
-	_clearScreen;                  î÷èùàåì êîíñîëü
+	_clearScreen;                  очищаем консоль
                             
-	call ScreenInitialization;     èíèöèàëèçèðóåì ýêðàí
+	call ScreenInitialization;     инициализируем экран
                             
-	call MainGameCycle;            ïåðåõîäèì â îñíîâíîé öèêë èãðû
+	call MainGameCycle;            переходим в основной цикл игры
                           
 to_close:    
-	mov ah,7h;                     7h - êîíñîëüíûé ââîä áåç ýõà (îæèäàåì íàæàòèÿ êëàâèøè äëÿ âûõîäà èç ïðèëîæåíèÿ)
+	mov ah,7h;                     7h - консольный ввод без эха (ожидаем нажатия клавиши для выхода из приложения)
         int 21h                
 
 esc_exit:    
@@ -149,24 +150,24 @@ esc_exit:
 	int 21h               
 ;############################################################    
 ;=================================================================
-; ZF = 1 - áóôåð ïóñò      
-; ñêàí-êîä â ah       
-_checkBuffer macro;      ïðîâåðÿåì - áûë ëè ââåäåí ñèìâîë ñ êëàâèàòóðû
+; ZF = 1 - буфер пуст      
+; скан-код в ah       
+_checkBuffer macro;      проверяем - был ли введен символ с клавиатуры
 	mov ah, 01h;               
 	int 16h;                 
 endm
 ;=================================================================
 ;=================================================================
-_readFromBuffer macro;   ñ÷èòûâàåì íàæàòóþ êëàâèøó
+_readFromBuffer macro;   считываем нажатую клавишу
 	mov ah, 00h;             
 	int 16h;                 
 endm 
 ;=================================================================
 ;=================================================================
-;Ðåçóëüòàò â cx:dx          
+;Результат в cx:dx          
 _getTimerValue macro         
-	push ax;        Ñîõðàíÿåì çíà÷åíèÿ ðåãèñòðà ax             
-	mov ax, 00h;    Ïîëó÷àåì çíà÷åíèå âðåìåíè
+	push ax;        Сохраняем значения регистра ax             
+	mov ax, 00h;    Получаем значение времени
 	int 1Ah;                                
 	pop ax   
 endm  
@@ -178,13 +179,13 @@ SpawnWall proc
  mov cx, wallSize      
  mov si, offset realWall            
  loopSpawnWall:              
-	mov bx, [si];             çàãðóæàåì â si î÷åðåäíîé ñèìâîë 
+	mov bx, [si];             загружаем в si очередной символ 
 	add si, pointSize 
-	              ;           ïîëó÷àåì ïîçèöèþ â âèäåîáóôôåðå
-	call GetOffset;           ïîëó÷àåì ñìåùåíèå âûâîäèìîãî ñèìâîëà â âèäåîáóôôåðå
-	mov di, bx;               çàãðóæàåì â di ïîçèöèþ
-	mov ax, wallSymbol;       çàãðóæàåì â ax âûâîäèìûé ñèìâîë
-	stosw;                    âûâîäèì
+	              ;           получаем позицию в видеобуффере
+	call GetOffset;           получаем смещение выводимого символа в видеобуффере
+	mov di, bx;               загружаем в di позицию
+	mov ax, wallSymbol;       загружаем в ax выводимый символ
+	stosw;                    выводим
 	loop loopSpawnWall    
  pop bx	
  pop cx
@@ -197,13 +198,13 @@ DeleteWall proc
  mov cx, wallSize
  mov si, offset realWall            
  loopDeleteWall:           
-	mov bx, [si];           çàãðóæàåì â si î÷åðåäíîé ñèìâîë
+	mov bx, [si];           загружаем в si очередной символ
 	add si, pointSize        
 	
-	call GetOffset;         ïîëó÷àåì ñìåùåíèå âûâîäèìîãî ñèìâîëà â âèäåîáóôôåðå
-	mov di, bx;             çàãðóæàåì â di ïîçèöèþ
-	mov ax, space;          çàíîñèì â ax ïðîáåë
-	stosw;                  âûâîäèì
+	call GetOffset;         получаем смещение выводимого символа в видеобуффере
+	mov di, bx;             загружаем в di позицию
+	mov ax, space;          заносим в ax пробел
+	stosw;                  выводим
 	loop loopDeleteWall    
  pop cx
  ret   
@@ -211,42 +212,42 @@ endp
 ;=================================================================
 ;=================================================================
 ScreenInitialization proc          
-	mov si, offset screen;  â si çàãðóæàåì 
-	xor di, di;             îáíóëÿåì di
-                  ;             ds:si óêàçûâàåò íà ñèìâîëû, êîòîðûå ìû áóäåì âûâîäèòü
-                  ;             es:di óêàçûâàåò íà di-ûé ñèìâîë êîíñîëè  
+	mov si, offset screen;  в si загружаем 
+	xor di, di;             обнуляем di
+                  ;             ds:si указывает на символы, которые мы будем выводить
+                  ;             es:di указывает на di-ый символ консоли  
                   
-	mov cx, consoleSizeX*consoleSizeY;      çàãðóæàåì â cx êîë-âî ñèìâîëîâ â êîíñîëè                                   
-	rep movsw;              ïåðåïèñûâàåì ïîñëåäîâàòåëüíî âñå ñèìâîëû èç ds:si â êîíñîëü es:di 
+	mov cx, consoleSizeX*consoleSizeY;      загружаем в cx кол-во символов в консоли                                   
+	rep movsw;              переписываем последовательно все символы из ds:si в консоль es:di 
 	xor ch, ch;                     
-	mov cl, snakeCurrentSize;               çàãðóæàåì â cl ðàçìåð çìåéêè
-	mov si, offset snakeBody;               â si çàãðóæàåì ñìåùåíèÿ íà÷àëà òåëà çìåéêè
+	mov cl, snakeCurrentSize;               загружаем в cl размер змейки
+	mov si, offset snakeBody;               в si загружаем смещения начала тела змейки
                
-loopInitSnake:;                 öèêë, â êîòîðîì ìû âûâîäèì òåëî çìåéêè
-	mov bx, [si];           çàãðóæàåì â bx î÷åðåäíîé ñèìâîë òåëà çìåéêè
-	add si, pointSize;      äîáàâëÿåì ê si PointSize, ò.ê. êàæäàÿ òî÷êà çàíèìàåò 2 áàéòà (öâåò + ñèìâîë)
+loopInitSnake:;                 цикл, в котором мы выводим тело змейки
+	mov bx, [si];           загружаем в bx очередной символ тела змейки
+	add si, pointSize;      добавляем к si PointSize, т.к. каждая точка занимает 2 байта (цвет + символ)
 	
-	call getOffset;         ïîëó÷àåì ñìåùåíèå âûâîäèìîãî ñèìâîëà â âèäåîáóôôåðå 
+	call getOffset;         получаем смещение выводимого символа в видеобуффере 
 	
-	mov di, bx;             çàãðóæàåì â di ïîçèöèþ
-	mov ax, snakeBodySymbol;çàãðóæàåì â ax âûâîäèìûé ñèìâîë
-	stosw;                  âûâîäèì (ñîõðàíÿåì ñèìâîë ïî àäðåñó es:di)
+	mov di, bx;             загружаем в di позицию
+	mov ax, snakeBodySymbol;загружаем в ax выводимый символ
+	stosw;                  выводим (сохраняем символ по адресу es:di)
 	loop loopInitSnake
      
-	call SpawnApple; ãåíåðèðóåì ÿáëîêî â ñëó÷àéíûõ êîîðäèíàòàõ
+	call SpawnApple; генерируем яблоко в случайных координатах
 	ret                     
 endp             
-;=================================================================
+;=================================================================   
 ;================================================================= 
-;ïîëó÷àåì ñìåùåíèå âèäåîáóôôåðà êàê (bh + (bl * 80)) * 2
-;êîîðäèíàòû (x,y) â bx
+;получаем смещение видеобуффера как (bh + (bl * 80)) * 2
+;координаты (x,y) в bx
 GetOffset proc     
 	push ax                
 	push dx
 
 	xor ah, ah;             
 	mov al, bl;             
-	mov dl, consoleSizeX;   â dl çàãðóæàåì xSize - ðàçìåð ñòðîêè
+	mov dl, consoleSizeX;   в dl загружаем xSize - размер строки
 	mul dl;              
 	mov dl, bh;           
 	xor dh, dh;           
@@ -261,7 +262,7 @@ GetOffset proc
 endp                            
 ;=================================================================
 ;=================================================================
-;ñäâèãàåì òåëî çìåéêè â ìàññèâå è çàêðàøèâàåì ïîñëåäíèé ýëåìåíò
+;сдвигаем тело змейки в массиве и закрашиваем последний элемент
 MoveSnake proc              
 	push ax                 
 	push bx                 
@@ -270,38 +271,38 @@ MoveSnake proc
 	push di                 
 	push es                 
          
-	mov al, snakeCurrentSize; â al çàãðóæàåì äëèíó çìåéêè
+	mov al, snakeCurrentSize; в al загружаем длину змейки
 	xor ah, ah;            
 	mov cx, ax;             
 	mov bx, pointSize;      
-	mul bx;                 òåïåðü â ax ðåàëüíàÿ ïîçèöèÿ â ïàìÿòè îòíîñèòåëüíî íà÷àëà ìàññèâà
-	mov di, offset snakeBody; çàãðóæàåì â di ñìåùåíèå ãîëîâû çìåéêè
-	add di, ax;             di - àäðåñ ñëåäóþùåãî ïîñëå ïîñëåäíåãî ýëåìåíòà ìàññèâà
-	mov si, di;             çãðóæàåì di â si
-	sub si, pointSize;      si - àäðåñ ïîñëåäíåãî ýëåìåíòà ìàññèâà
+	mul bx;                 теперь в ax реальная позиция в памяти относительно начала массива
+	mov di, offset snakeBody; загружаем в di смещение головы змейки
+	add di, ax;             di - адрес следующего после последнего элемента массива
+	mov si, di;             згружаем di в si
+	sub si, pointSize;      si - адрес последнего элемента массива
                        
 	push di           
-	                       ;óäàëÿåì êîíåö çìåéêè ñ ýêðàíà
-	mov es, videoMemoryStart;     çàãðóæàåì â es ñìåùåíèå âèäåîáóôôåðà
-	mov bx, ds:[si];        çàãðóæàåì â bx ïîñëåäíèé ýëåìåíò çìåéêè 
+	                       ;удаляем конец змейки с экрана
+	mov es, videoMemoryStart;     загружаем в es смещение видеобуффера
+	mov bx, ds:[si];        загружаем в bx последний элемент змейки 
 	
-	call GetOffset;         âû÷èñëÿåì åå ïîçèöèþ íà ýêðàíå  
+	call GetOffset;         вычисляем ее позицию на экране  
 	
-	mov di, bx;             çàíîñèì ïîçèöèþ, êîòîðóþ áóäåì î÷èùàòü â di
-	mov ax, space;          çàãðóæàåì â ax ïóñòóþ êëåòêó (ïðîáåë)
-	stosw;                  çàïèñûâàåì (ïåðåñûëàåì ñîäåðäæèìîå ax â es:di)
+	mov di, bx;             заносим позицию, которую будем очищать в di
+	mov ax, space;          загружаем в ax пустую клетку (пробел)
+	stosw;                  записываем (пересылаем содерджимое ax в es:di)
                             
 	pop di
                            
-	mov es, dataStart;      äëÿ ðàáîòû ñ äàííûìè (äî ýòîãî es óêàçûâàë íà âèäåîáóôôåð)
-	std;                    èäåì îò êîíöà ê íà÷àëó
-	rep movsw;              ïåðåïèñûâàåì ñèìâîëû èç ds:si â es:di (si - ïðåäïîñëåäíèé ýëåìåíò çìåéêè, di - ïîñëåäíèé ýëåìåíò)
-	         ;              òàêèì îáðàçîì ñìåùàåì âñþ çìåéêó íà 1 øàã
-	mov bx, snakeBody;      çàãðóæàåì â bx ïîçèöèþ ãîëîâû çìåéêè
+	mov es, dataStart;      для работы с данными (до этого es указывал на видеобуффер)
+	std;                    идем от конца к началу
+	rep movsw;              переписываем символы из ds:si в es:di (si - предпоследний элемент змейки, di - последний элемент)
+	         ;              таким образом смещаем всю змейку на 1 шаг
+	mov bx, snakeBody;      загружаем в bx позицию головы змейки
                     
-	add bh, moveAlongX;     îáíîâëÿåì êîîðäèíàòû ãîëîâû
+	add bh, moveAlongX;     обновляем координаты головы
 	add bl, moveAlongY
-	mov snakeBody, bx;      ñîõðàíÿåì íîâóþ ïîçèöèþ ãîëîâû
+	mov snakeBody, bx;      сохраняем новую позицию головы
 	                                           
 	pop es                  
 	pop di                  
@@ -311,7 +312,7 @@ MoveSnake proc
 	pop ax                  
 	ret                     
 endp                         
-;=================================================================
+;=================================================================  
 ;=================================================================
 MainGameCycle proc
 	push ax                      
@@ -321,14 +322,21 @@ MainGameCycle proc
 	push ds                      
 	push es                      
                        
-checkAndMoveLoop: 
+checkAndMoveLoop:  
+
+        cmp flag, 1
+        jne _next1
+        mov flag, 0 
+        ;mov flag1, 1
+        jmp boost
+        _next1:
          
-	_checkBuffer;            ïðîâåðÿåì - áûë ëè ââåäåí ñèìâîë
+	_checkBuffer;            проверяем - был ли введен символ
 	jnz skipJmp1               
-	jmp far ptr noSymbolInBuff   
+	jmp far ptr emptyBuffer   
 	                    
 skipJmp1:                       
-	_readFromBuffer;         ñ÷èòûâàåì ñèìâîë èç áóôôåðà
+	_readFromBuffer;         считываем символ из буффера
 	cmp ah, exitKey
 	jne skipJmp2                                   
 	jmp far ptr esc_exit
@@ -344,88 +352,75 @@ skipJmp2:
 	je setMoveUp                 
                                  
 	cmp ah, moveDownKey	        
-	je setMoveDown              
+	je setMoveDown                        
                                 
-	cmp ah, speedUpKey		  
-	je setSpeedUp                
-                                 
-	cmp ah, speedDownKey	   
-	je setSpeedDown              
-                                
-	jmp noSymbolInBuff          
+	jmp emptyBuffer         
                                  
 setMoveLeft:              
 	mov moveAlongX, negativeValue
 	mov moveAlongY,  stopValue
-	jmp noSymbolInBuff           
+	jmp emptyBuffer          
                                  
 setMoveRight:                                             
 	mov moveAlongX, positiveValue 
 	mov moveAlongY, stopValue     
-	jmp noSymbolInBuff       
+	jmp emptyBuffer      
                                  
 setMoveUp:                
 	mov moveAlongX, stopValue 
 	mov moveAlongY, negativeValue   
-	jmp noSymbolInBuff           
+	jmp emptyBuffer           
                                  
 setMoveDown:             
 	mov moveAlongX, stopValue     
 	mov moveAlongY, positiveValue    
-	jmp noSymbolInBuff           
+	jmp emptyBuffer          
                                  
-setSpeedUp:                      
-	mov ax, waitTime;       çàãðóæàåì â ax çíà÷åíèå çàäåðæêè
-	cmp ax, waitTimeMin;    ñðàâíèâàåì åãî ñ ìèíèìàëüíûì
-	je noSymbolInBuff;      åñëè ðàâíî ìèíèìàëüíîìó - ïðîïóñêàåì 
+boost:                      
+	mov ax, waitTime;       загружаем в ax значение задержки
+	cmp ax, waitTimeMin;    сравниваем его с минимальным
+	je emptyBuffer;         если равно минимальному - пропускаем 
 	                             
-	sub ax, deltaTime;      óìåíüøàåì âðåìÿ çàäåðæêè
-	mov waitTime, ax;       îáíîâëÿåì çíà÷åíèå çàäåðæêè
+	sub ax, deltaTime;      уменьшаем время задержки
+	mov waitTime, ax;       обновляем значение задержки
                                  
 	mov es, videoMemoryStart           
 	mov di, offset speed - offset screen	
 	mov ax, es:[di]              
 	inc ax                       
-	mov es:[di], ax                                       
-	jmp noSymbolInBuff           
+	mov es:[di], ax 
+	
+	cmp flag1, 1
+	jne _next3
+	mov flag1, 0
+	jmp boost
+	_next3:   
+	                                   
+	jmp emptyBuffer                      
                                  
-setSpeedDown:                    
-	mov ax, waitTime             
-	cmp ax, waitTimeMax         
-	je noSymbolInBuff			 
-	                             
-	add ax, deltaTime           
-	mov waitTime, ax 			 
-                                 
-	mov es, videoMemoryStart           
-	mov di, offset speed - offset screen	
-	mov ax, es:[di]              
-	dec ax                       
-	mov es:[di], ax                                       
-	jmp noSymbolInBuff           
-                                 
-noSymbolInBuff:                  
-	call MoveSnake;                 ïåðåäâèãàåì çìåéêó íà ýêðàíå
-	mov bx, snakeBody;              ïîìåùàåì â bx ãîëîâó çìåè
+emptyBuffer:                  
+	call MoveSnake;                 передвигаем змейку на экране
+	mov bx, snakeBody;              помещаем в bx голову змеи  
+	
 checkSymbolAgain:                
-	call GetOffset;                 â bx òåïåðü ñìåùåíèå ÿ÷åéêè êîíñîëè ñ íîâîé ãîëîâîé çìåéêè
+	call GetOffset;                 в bx теперь смещение ячейки консоли с новой головой змейки
                                  
-	mov es, videoMemoryStart;             çàãðóæàåì â es ñìåùåíèå âèäåîáóôôåðà
-	mov ax, es:[bx];                çàãðóæàåì â ax ñèìâîë êóäà äîëæíà ÑÒÀÒÜ çìåéêà
+	mov es, videoMemoryStart;             загружаем в es смещение видеобуффера
+	mov ax, es:[bx];                загружаем в ax символ куда должна СТАТЬ змейка
                                  
-	cmp ax, appleSymbol;            åñëè ýòîò ñèìâîë - ÿáëîêî
+	cmp ax, appleSymbol;            если этот символ - яблоко
 	je AppleIsNext;                 
                                  
-	cmp ax, snakeBodySymbol;        åñëè ýòîò ñèìâîë - òåëî çìåéêè
+	cmp ax, snakeBodySymbol;        если этот символ - тело змейки
 	je SnakeIsNext;                 
                                  
-	cmp ax, horizontalWall;         åñëè ýòîò ñèìâîë - ãîðèçîíòàëüíàÿ ñòåíà
+	cmp ax, horizontalWall;         если этот символ - горизонтальная стена
 	je PortalUpDown;               
                                   
-	cmp ax, verticalWall;           åñëè ýòîò ñèìâîë - âåðíèêàëüíàÿ ñòåíà
+	cmp ax, verticalWall;           если этот символ - верникальная стена
 	je PortalLeftRight;              
 	                            
-	cmp ax, wallSymbol;             åñëè ýòîò ñèìâîë - ãîðèçîíòàëüíàÿ ñòåíà
+	cmp ax, wallSymbol;             если этот символ - горизонтальная стена
 	je SnakeIsNext                   
                                  
 	cmp ax, wallCrossing    
@@ -433,42 +428,45 @@ checkSymbolAgain:
                                  
 	jmp GoNextIteration          
                                 
-AppleIsNext:                       
+AppleIsNext:                             
         call DeleteWall
-	call IncSnake;                  óâåëè÷èâàåì äëèíó çìåéêè
-	call SpawnApple;                ãåíåðèðóåì íîâîå ÿáëîêî 
-	call IncScore;                  óâåëè÷èâàåì ñ÷åò
-	jmp GoNextIteration;            ïåðåõîäèì ê ñëåäóþùåé èòåðàöèè
+	call IncSnake;                  увеличиваем длину змейки
+	call SpawnApple;                генерируем новое яблоко    
+	call IncScore;                  увеличиваем счет   
+	
+	;call CheckAppleCounter 	                             
+	
+	jmp GoNextIteration;            переходим к следующей итерации
 SnakeIsNext:                     
-	jmp endLoop;                    çàêàí÷èâàåì èãðó
+	jmp endLoop;                    заканчиваем игру
 PortalUpDown:                    
-	mov bx, snakeBody;              çàãðóæàåì â bx ãîëîâó çìåéêè
-	sub bl, fieldSizeY;             îòíèìàåì îò y êîîðäèíàòû âûñîòó êîíñîëè 
-	cmp bl, 0;                      îïðåäåëÿåì âåðõíÿÿ ýòî èëè íèæíÿÿ ãðàíèöà
-	jg writeNewHeadPos;             ïåðåðèñîâûâàåì ãîëîâó çìåéêè
+	mov bx, snakeBody;              загружаем в bx голову змейки
+	sub bl, fieldSizeY;             отнимаем от y координаты высоту консоли 
+	cmp bl, 0;                      определяем верхняя это или нижняя граница
+	jg writeNewHeadPos;             перерисовываем голову змейки
                                  
-	                    ;           åñëè ýòî áûëà âåðõíÿÿ ñòåíà
-	add bl, fieldSizeY*2;           êîððåêòèðóåì êîîðäèíàòû 
+	                    ;           если это была верхняя стена
+	add bl, fieldSizeY*2;           корректируем координаты 
                                  
 writeNewHeadPos:                 
-	mov snakeBody, bx;              çàïèñûâàåì íîâîå çíà÷åíèå ãîëîâû
-	jmp checkSymbolAgain;           è îòïðàâëÿåì åãî çàíîâî íà ñðàâíåíèå
+	mov snakeBody, bx;              записываем новое значение головы
+	jmp checkSymbolAgain;           и отправляем его заново на сравнение
                                  
 PortalLeftRight:                
 	mov bx, snakeBody            
 	sub bh, fieldSizeX              
 	cmp bh, 0		             
-	jg writeNewHeadPos;             àíàëîãè÷íî îáðàáàòûâàåì ñëó÷àé ñ âåðòèêàëüíîé ñòåíîé
+	jg writeNewHeadPos;             аналогично обрабатываем случай с вертикальной стеной
                                  
 	add bh, fieldSizeX*2             
 	jmp writeNewHeadPos         
                                  
 GoNextIteration:                 
-	mov bx, snakeBody;              çàãðóæàåì â bx íîâîå íà÷àëî çìåéêè
-	call GetOffset;                 âû÷èñëÿåì åå ïîçèöèþ
-	mov di, bx;                     òåïåðü â di ñìåùåíèå ïîçèöèè bx â êîíñîëè
-	mov ax, snakeBodySymbol;        çàïèñûâàåì â ax ñèìâîë çìåéêè 
-	stosw;                          çàïèñûâàåì â êîíñîëü
+	mov bx, snakeBody;              загружаем в bx новое начало змейки
+	call GetOffset;                 вычисляем ее позицию
+	mov di, bx;                     теперь в di смещение позиции bx в консоли
+	mov ax, snakeBodySymbol;        записываем в ax символ змейки 
+	stosw;                          записываем в консоль
                                 
 	call MakeDelay;                    
                                  
@@ -491,15 +489,15 @@ MakeDelay proc
 	push cx                      
 	push dx                      
                                  
-	_getTimerValue;          ïîëó÷àåì òåêóùåå çíà÷åíèå âðåìåíè â dx
+	_getTimerValue;          получаем текущее значение времени в dx
                                  
-	add dx, waitTime;       äîáàâëÿåì ê dx çíà÷åíèå çàäåðæêè
+	add dx, waitTime;       добавляем к dx значение задержки
 	mov bx, dx;             dx -> bx
                                  
 checkTimeLoop:                   
-	_getTimerValue;          ïîëó÷àåì òåêóçåå çíà÷åíèå âðåìåíè
+	_getTimerValue;          получаем текузее значение времени
 	cmp dx, bx;             ax - current value, bx - needed value
-	jl CheckTimeLoop;       åñëè åùå ðàíî - óõîäèì íà ñëåäóþùóþ èòåðàöèþ 
+	jl CheckTimeLoop;       если еще рано - уходим на следующую итерацию 
                                  
 	pop dx                       
 	pop cx                       
@@ -514,13 +512,13 @@ SpawnApple proc
 	push bx               
 	push cx             
 	push dx               
-	push es               
+	push es              
 	                    
-	mov ah, 2Ch;    ñ÷èòûâàåì òåêóùåå âðåìÿ
-	int 21h;        ch - ÷àñ, cl - ìèíóòû, dh - ñåêóíäû, dl - ìñåê
+	mov ah, 2Ch;    считываем текущее время
+	int 21h;        ch - час, cl - минуты, dh - секунды, dl - мсек
 	
 	mov al, dl                     
-        mul dh;         òåïåðü â ax ÷èñëî äëÿ ðàíäîìà
+        mul dh;         теперь в ax число для рандома
 	             
 	xor dx, dx             
 	             
@@ -563,32 +561,32 @@ SpawnApple proc
 	  loop toForm                    
 ;---------------------------------------------------------------------	                      
 loop_random:              
-	mov ah, 2Ch;            ñ÷èòûâàåì òåêóùåå âðåìÿ
-	int 21h;                ch - ÷àñ, cl - ìèíóòû, dh - ñåêóíäû, dl - ìñåê
+	mov ah, 2Ch;            считываем текущее время
+	int 21h;                ch - час, cl - минуты, dh - секунды, dl - мсек
 	
-	mov al, dl;             ïîëó÷àåì ñëó÷àéíîå ÷èñëî
-	mul dh;                 òåïåðü â ax ÷èñëî äëÿ ðàíäîìà
+	mov al, dl;             получаем случайное число
+	mul dh;                 теперь в ax число для рандома
                           
-	xor dx, dx;             îáíóëÿåì dx
-	mov cx, fieldSizeX;     â cx çàãðóæàåì øèðèíó ïîëÿ
-	div cx;                 ïîëó÷àåì íîìåð ñòðîêè ÿáëîêà
-	add dx, 2;              äîáàâëÿåì ñìåùåíèå îò íà÷àëà îñè
-	mov bh, dl;             ñîõðàíÿåì êîîðäèíàòó x
+	xor dx, dx;             обнуляем dx
+	mov cx, fieldSizeX;     в cx загружаем ширину поля
+	div cx;                 получаем номер строки яблока
+	add dx, 2;              добавляем смещение от начала оси
+	mov bh, dl;             сохраняем координату x
                           
 	xor dx, dx            
 	mov cx, fieldSizeY        
-	div cx;                 àíàëîãè÷íî ïîëó÷àåì y êîîðäèíàòó
+	div cx;                 аналогично получаем y координату
 	add dx, 2			  
-	mov bl, dl;             òåïåðü â bx íàõîäèòñÿ êîîðäèíàòà ÿáëîêà
+	mov bl, dl;             теперь в bx находится координата яблока
                                          
         push bx                      
-	call GetOffset;         ðàññèòûâàåì ñìåùåíèå
-	mov es, videoMemoryStart;     çàãðóæàåì â es íà÷àëî âèäåîáóôôåðà
-	mov ax, es:[bx];        â ax çàãðóæàåì ñèìâîë, êîòîðûé ðàñïîëîæåí ïî êîîðäèíàòàì, â êîòîðûõ ìû õîòèì ðàñïîëîæèòü ÿáëîêî
+	call GetOffset;         расситываем смещение
+	mov es, videoMemoryStart;     загружаем в es начало видеобуффера
+	mov ax, es:[bx];        в ax загружаем символ, который расположен по координатам, в которых мы хотим расположить яблоко
         pop bx       
                      
-	cmp ax, space;          ñðàâíèâàåì èõ ñ ïðîáåëîì (ïóñòîé êëåòêîé)
-	jne loop_random;        åñëè â êëåòêå ÷òî-òî åñòü - ãåíåðèðóåì íîâûå êîîðäèíàòû  
+	cmp ax, space;          сравниваем их с пробелом (пустой клеткой)
+	jne loop_random;        если в клетке что-то есть - генерируем новые координаты  
 ;---------------------------------------------------------------------               
     mov cx, wallSize             
     mov si, offset wallForm            
@@ -596,36 +594,36 @@ loop_random:
         push bx;               
 	add bx, [si];                
         push bx                      
-	call GetOffset;               ðàññèòûâàåì ñìåùåíèå
-	mov es, videoMemoryStart;     çàãðóæàåì â es íà÷àëî âèäåîáóôôåðà
-        mov ax, es:[bx];        â ax çàãðóæàåì ñèìâîë, êîòîðûé ðàñïîëîæåí ïî êîîðäèíàòàì, â êîòîðûõ ìû õîòèì ðàñïîëîæèòü ÿáëîêî
+	call GetOffset;               расситываем смещение
+	mov es, videoMemoryStart;     загружаем в es начало видеобуффера
+        mov ax, es:[bx];        в ax загружаем символ, который расположен по координатам, в которых мы хотим расположить яблоко
         pop bx 
         pop bx
 	cmp ax, space  
 	jne loop_random              
-	add si, pointSize;      äîáàâëÿåì ê si PointSize, ò.ê. êàæäàÿ òî÷êà çàíèìàåò 2 áàéòà (öâåò + ñèìâîë)
+	add si, pointSize;      добавляем к si PointSize, т.к. каждая точка занимает 2 байта (цвет + символ)
 	loop loopRandomWall
 	
     mov cx, wallSize            
     mov si, offset wallForm
     mov di, offset realWall
     loopCreateWall:            
-        push ax;                öèêë, â êîòîðîì ìû âûâîäèì òåëî ñòåíû
-	mov ax, [si];           çàãðóæàåì â si î÷åðåäíîé ñèìâîë òåëà ñòåíû 
+        push ax;                цикл, в котором мы выводим тело стены
+	mov ax, [si];           загружаем в si очередной символ тела стены 
 	add ax, bx 
 	mov [di], ax                      
 	add si, pointSize
 	add di, pointSize
-	pop ax;                 âûâîäèì
+	pop ax;                 выводим
 	loop loopCreateWall    
 	
 	call SpawnWall                                    
 	                
 	push bx                      
-	call GetOffset;         ðàññèòûâàåì ñìåùåíèå
-	mov es, videoMemoryStart;     çàãðóæàåì â es íà÷àëî âèäåîáóôôåðà
+	call GetOffset;         расситываем смещение
+	mov es, videoMemoryStart;     загружаем в es начало видеобуффера
 	mov ax, appleSymbol; 
-	mov es:[bx], ax;        âûâîäèì ñèìâîë ÿáëîêà
+	mov es:[bx], ax;        выводим символ яблока
         pop bx                 
                           
 	pop es                
@@ -643,28 +641,28 @@ IncSnake proc
 	push di               
 	push es               
                          
-	mov al, snakeCurrentSize;       çàãðóæàåì â ax òåêóùèé ðàçìåð çìåéêè
-	cmp al, snakeMaxSize;           ñðàâíèâàåì åãî ñ ìàêèñèìàëüíûì ðàçìåðîì çìåéêè
-	je return;                      åñëè äîñòèãëè ìàêñèìóìà - âûõîäèì
+	mov al, snakeCurrentSize;       загружаем в ax текущий размер змейки
+	cmp al, snakeMaxSize;           сравниваем его с макисимальным размером змейки
+	je return;                      если достигли максимума - выходим
                           
-	      ;                         óâåëè÷èâàåì äëèíó çìåéêè â ìàññèâå
-	inc al;                         óâåëè÷èâàåì al íà 1
-	mov snakeCurrentSize, al;       îáíîâëÿåì ðàçìåð çìåéêè
-	dec al;                         óìåíüøàåì al íà 1 (óäîáíåå)
+	      ;                         увеличиваем длину змейки в массиве
+	inc al;                         увеличиваем al на 1
+	mov snakeCurrentSize, al;       обновляем размер змейки
+	dec al;                         уменьшаем al на 1 (удобнее)
                           
 	                      
-	mov bl, pointSize;              âîññòàíàâëèâàåì êîíåö
-	mul bl;                         ïîëó÷èëè â ax íóæíîå äëÿ âîññòàíîâëåíèÿ ñìåùåíèå  
+	mov bl, pointSize;              восстанавливаем конец
+	mul bl;                         получили в ax нужное для восстановления смещение  
                          
 	mov di, offset snakeBody
-	add di, ax;                     di òåïåðü óêàûâàåò íà òî÷êó äëÿ âîññòàíîâëåíèÿ
+	add di, ax;                     di теперь укаывает на точку для восстановления
                           
-	mov es, dataStart;              çàãðóæàåì â es äàííûå
-	mov bx, es:[di];                çàãðóæàåì â bx âîññòàíàâëèâàåìóþ òî÷êó
-	call GetOffset;                 ïîëó÷àåì åå êîîðäèíàòû
+	mov es, dataStart;              загружаем в es данные
+	mov bx, es:[di];                загружаем в bx восстанавливаемую точку
+	call GetOffset;                 получаем ее координаты
                           
-	mov es, videoMemoryStart;             çàãðóæàåì â es ñìåùåíèå âèäåîáóôôåðà
-	mov es:[bx], snakeBodySymbol;   çàïèñûâàåì â òî÷êó ñèìâîë òåëà çìåéêè
+	mov es, videoMemoryStart;             загружаем в es смещение видеобуффера
+	mov es:[bx], snakeBodySymbol;   записываем в точку символ тела змейки
 	                      
 return:                  
 	pop es                
@@ -675,7 +673,7 @@ return:
 endp      
 ;=================================================================
 ;=================================================================
-incScore proc             
+IncScore proc             
 	push ax               
 	push es               
 	push si               
@@ -683,15 +681,20 @@ incScore proc
 	               
 	mov es, videoMemoryStart    
 	mov cx, scoreSize;  
-	mov di, offset score + (scoreSize - 1)*consoleCageSize - offset screen;
+	mov di, offset score + (scoreSize - 1)*consoleCageSize - offset screen; 
+	mov ax, es:[di]
+	test ax, 1
+	jz _next2
+	mov flag, 1
+	_next2:
                           
 loop_score:	              
 	mov ax, es:[di]       
-	cmp al, 39h;    ñèìâîë '9'
+	cmp al, 39h;    символ '9'
 	jne skip                            
 	sub al, 9			 
 	mov es:[di], ax                      
-	sub di, consoleCageSize;        âîçâðàùàåìñÿ íàçàä íà îäèí ñèìâîë                  
+	sub di, consoleCageSize;        возвращаемся назад на один символ                  
 	loop loop_score 
 	      
 	jmp return_incScore   
