@@ -319,10 +319,6 @@ atoi:
 push bp
 mov bp, sp
 pusha
-
-;[ss:bp+4+0] - адрес числа
-;[ss:bp+4+2] - адрес строки
-;[ss:bp+4+4] - ошибка, если 1
 mov di, [ss:bp+4+2]
 
 xor bx, bx
