@@ -3,16 +3,21 @@
 .stack 100h
 
 .data
-        bufferSize equ 256
+        bufferSize equ 126
         buffer db bufferSize dup('$')
-        bufferLast dw 0; последний символ ком строки
+        bufferLast dw 0  
+        
+        bufferForNUL db 3 dup('$') 
+        
+        insteadNUL dw 1 dup('')
 
         sizeWordBuffer equ 50
         wordBuffer db sizeWordBuffer + 1 dup('$')
         lastWordBuffer dw 0
 
-        fileName db 256 dup(0)
-        numberBuffer db 256 dup(0)
+        fileName db 126 dup(0)
+        
+        numberBuffer db 10 dup(0)
 
         wordNumber dw 0
         wordCounter dw 0
@@ -24,12 +29,12 @@
 
         openingFileError        db    0dh, 0ah, "Error opening file.", 0dh, 0ah, '$'
         incorrectArgumentsError db    0dh, 0ah, "Error: incorrect cmd arguments.", 0dh, 0ah,"You need to set path and number of word to delate.", 0dh, 0ah, '$'
-        incorrectNumberError    db    0dh, 0ah, 'Error: incorrect number.', 0dh, 0ah, '$'
+        incorrectNumberError    db    0dh, 0ah, 'Error: you need to enter a positive integer number.', 0dh, 0ah, '$'
         successMessage          db    0dh, 0ah, "Success!", 0dh, 0ah, '$'
         goodPathValidation      db    0dh, 0ah, "File path checked successfully.", 0dh, 0ah, '$'
         emptyCmdError           db    0dh, 0ah, "Error: command line is empty.", 0dh, 0ah, '$'
-        negativeNumberError     db    0dh, 0ah, "Error: the number must not be negative.", 0dh, 0ah, '$'
-        emptyFilePathError      db    0dh, 0ah, "Error: file path is empty.", 0dh, 0ah, '$'
+        emptyFilePathError      db    0dh, 0ah, "Error: file path is empty.", 0dh, 0ah, '$' 
+        isNUL                   db    0dh, 0ah, "NUL detected.", 0dh, 0ah, '$'
         
 .code
 ;========================================
@@ -52,70 +57,63 @@ main:
 mov ax, @data
 mov ds, ax
 
-mov bl, es:[80h]; длина ком строки
-add bx, 80h; последний символ ком строки
-mov si, 82h; начао ком строки
+mov bl, es:[80h]; äëèíà êîì ñòðîêè
+add bx, 80h; ïîñëåäíèé ñèìâîë êîì ñòðîêè
+mov si, 82h; íà÷àëî êîì ñòðîêè
 mov di, offset fileName
 
 cmp si, bx
 ja emptyCmd 
 
 parse_path:
+        cmp byte ptr es:[si], ' '
+        je parsed_path
 
-cmp byte ptr es:[si], ' '
-je parsed_path
+        mov al, es:[si]; ïîìåùàåì èìÿ ôàéëà èç êîìàíäíîé ñòðîêè â ïåðåìåííóþ fileName
+        mov [di], al
 
-mov al, es:[si]; помещаем имя файла из командной строки в переменную fileName
-mov [di], al
-
-inc di
-inc si
-cmp si, bx 
-jbe parse_path; продолжаем парсинг, пока мы не дошли до конца ком строки
+        inc di
+        inc si
+        cmp si, bx 
+        jbe parse_path; ïðîäîëæàåì ïàðñèíã, ïîêà ìû íå äîøëè äî êîíöà êîì ñòðîêè (<=)
 
 parsed_path:
-mov di, offset numberBuffer
-inc si
-cmp si, bx; если начало < конца кс
-ja bad_arguments ;если неверные аргументы, то переходим по меке bad_arguments
-;если нет, то продолжаем работать с введёнными в кс параметрами
-
+        mov di, offset numberBuffer
+        inc si
+        cmp si, bx; åñëè íà÷àëî < êîíöà êñ
+        ja incorrectArguments
+            
 parse_number:
-cmp byte ptr es:[si], ' ' ; проверяем, не пробел ли
-je parsed_number
-mov al, es:[si] ; помещаем из командной строки данные в bufNumber
-mov [di], al
+        cmp byte ptr es:[si], ' ' ; ïðîâåðÿåì, íå ïðîáåë ëè
+        je parsed_number
+        mov al, es:[si] ; ïîìåùàåì èç êîìàíäíîé ñòðîêè äàííûå â numberBuffer
+        mov [di], al
 
-inc di
-inc si
-inc cx
-cmp si, bx; если всё хорошо, то продолжаем работать
-jbe parse_number
+        inc di
+        inc si
+        inc cx
+        cmp si, bx; åñëè âñ¸ õîðîøî, òî ïðîäîëæàåì ðàáîòàòü
+        jbe parse_number
 
 parsed_number:
+        push 0
+        mov di, offset numberBuffer
+        push di
+        mov di, offset wordNumber 
+        push di
+        call atoi
+        pop ax
+        pop ax
+        pop ax; â ax ôëàã îøèáêè
 
-push 0
-mov di, offset numberBuffer
-push di
-mov di, offset wordNumber 
-push di
-call atoi
-pop ax
-pop ax
-pop ax; error
+        cmp ax, 1
+        je incorrectNumber
 
-cmp ax, 1; если ошибка
-je bad_number
-
-cmp wordNumber, 0; если число отрицательное
-jl negativeNumber
-_print goodPathValidation
-call process_file 
-_print successMessage
-;mov ax, offset successMessage;смещение строки done_msg
-;push ax ; сохраняем значение в стеке
-;call print_str ; функция вывода сообщения
-;pop ax ;достаём из стека ax
+        cmp wordNumber, 1; åñëè ÷èñëî îòðèöàòåëüíîå
+        jl incorrectNumber 
+        _print goodPathValidation
+        call process_file
+        _print successMessage
 
 exit: 
         _end
@@ -123,253 +121,253 @@ exit:
 emptyCmd:
         _print emptyCmdError
         _end
-        
-negativeNumber:
-        _print negativeNumberError
-        _end
 
-bad_file:
+errorOpening:
         _print openingFileError 
         _end 
 
-bad_arguments:
+incorrectArguments:
         _print incorrectArgumentsError 
         _end
 
-bad_number:
+incorrectNumber:
         _print incorrectNumberError
-        _end
+        _end   
 ;==============================================================
 ;==============================================================
-process_file:
-;открыть существующий файл
-mov dx, offset fileName; адрес строки с полным именем файла
-mov ah, 3Dh
-mov al, 02h ;режим доступа(и для чтениия, и для записи)
-int 21h ; открываем файл
-mov fd, ax ;в ax-код ошибки или дескриптор файла если всё хорошо
-;---------------------------------------------
-mov bx, ax  ;помещаем код ошибки в bx
-jnc read_file_buffer ; переход, если перенос не установлен (ЕСЛИ ПРОИЗОШЛА ОШИБКА, CX = 1)
-jmp bad_file; если ошибка произошла и перенос установлен, то файл не открыт, переходим по метке и сообщаем об этом
+process_file: 
+        mov dx, offset fileName
+        mov ah, 3Dh
+        mov al, 02h ;ðåæèì äîñòóïà
+        int 21h
+        mov fd, ax ;â ax - êîä îøèáêè èëè äåñêðèïòîð ôàéëà, åñëè âñ¸ õîðîøî
+
+        jnc read_file_buffer ; ïåðåõîä, åñëè ïåðåíîñ íå óñòàíîâëåí (ÅÑËÈ ÏÐÎÈÇÎØËÀ ÎØÈÁÊÀ, CX = 1)
+        jmp errorOpening
 
 read_file_buffer:
-;--------------------------------------------- ПЕРЕМЕЩЕНИЕ УКАЗАТЕЛЯ ФАЙЛА
-mov ah, 42h ; переместить указатель чтения-записи (на первой итерации в начало файла)
-mov cx, word ptr [offset readPointer] ; cx:dx- расстояние, на которое надо переместить указатель (знаковое число)
-mov dx, word ptr [offset readPointer + 2]
-mov al, 0 ; перемещение относительно начала файла
-mov bx, fd ;файловый дескрипрор
-int 21h ; перемещаем указатель файла в начало
-;--------------------------------------------- СЧИТЫВАЕМ БУФЕР ИЗ ФАЙЛА
-mov cx, bufferSize ; число байт для чтения
-mov dx, offset buffer ; адрес буфера для приема данных
-mov ah, 3Fh ; чтение из файла или устройства
-mov bx, fd ; идентификатор файла
-int 21h ; читаем из файла 
+;--------------------------------------------- 
+        mov ah, 42h ; ïåðåìåñòèòü óêàçàòåëü ÷òåíèÿ-çàïèñè
+        mov cx, word ptr [offset readPointer] ; cx:dx- ðàññòîÿíèå, íà êîòîðîå íàäî ïåðåìåñòèòü óêàçàòåëü
+        mov dx, word ptr [offset readPointer + 2]
+        mov al, 0 ; ïåðåìåùåíèå îòíîñèòåëüíî íà÷àëà ôàéëà
+        mov bx, fd
+        int 21h ; ïåðåìåùàåì óêàçàòåëü ôàéëà â íà÷àëî
+;--------------------------------------------- 
+        mov cx, bufferSize ; ÷èñëî áàéò äëÿ ÷òåíèÿ
+        mov dx, offset buffer ; àäðåñ áóôåðà äëÿ ïðèåìà äàííûõ
+        mov ah, 3Fh ; ÷òåíèå èç ôàéëà èëè óñòðîéñòâà
+        mov bx, fd
+        int 21h ; ÷èòàåì èç ôàéëà 
 ;---------------------------------------------
-jc close_file ;если флаг CF был поднят, то ошибка
-;если операция выполнена успешно, то в ax число считанных байт
-cmp ax, 0 ;сравниваем с 0 cимволом
-je close_file ;если файл пуст, то переходим по метке close_file и закрываем его
+        jc close_file ;åñëè ôëàã CF áûë ïîäíÿò, òî îøèáêà
+        cmp ax, 0
+        je close_file
                                                                          
-mov cx, word ptr [offset readPointer] ; если файл не пустой или мы что-то смогли прочитать то запоминаем позицию
-mov dx, word ptr [offset readPointer + 2]
+        mov cx, word ptr [offset readPointer] ; åñëè ôàéë íå ïóñòîé èëè ìû ÷òî-òî ñìîãëè ïðî÷èòàòü, òî çàïîìèíàåì ïîçèöèþ
+        mov dx, word ptr [offset readPointer + 2]
  
-add dx, ax; добавляем к смещению число считанных байт
-adc cx, 0 ; сложение с переносом
-mov word ptr [offset readPointer], cx ;новое смещение чтения-записи
-mov word ptr [offset readPointer + 2], dx
+        add dx, ax; äîáàâëÿåì ê ñìåùåíèþ ÷èñëî ñ÷èòàííûõ áàéò
+        adc cx, 0 ; ñëîæåíèå ñ ïåðåíîñîì
+        mov word ptr [offset readPointer], cx ;íîâîå ñìåùåíèå ÷òåíèÿ-çàïèñè
+        mov word ptr [offset readPointer + 2], dx
 
-mov bufferLast, ax; помещаем число считанных байт
-call process_buffer ; обработка блока считанных данных
-
-jmp read_file_buffer
+        mov bufferLast, ax; ïîìåùàåì ÷èñëî ñ÷èòàííûõ áàéò
+        call process_buffer ; îáðàáîòêà áóôåðà ñ÷èòàííûõ äàííûõ
+        jmp read_file_buffer
+        
 
 close_file:
-;check word buffer
-call check_word
-
-mov ah, 40h ;запись в файл
-mov cx, 0 ;кол-во байт для записи
-mov bx, fd ;идентификатор файла
-mov dx, offset wordBuffer ;адрес буффера с данными
-int 21h
-
-mov ah, 3Eh ;функция закрытия файла
-mov bx, fd ;файловый дескриптор
-int 21h
+        ; ïðîâåðÿåì áóôåð
+        call check_word
+        jmp next 
+        next:
+        mov ah, 40h ;çàïèñü â ôàéë
+        mov cx, 0 ;êîë-âî áàéò äëÿ çàïèñè
+        mov bx, fd ;èäåíòèôèêàòîð ôàéëà
+        mov dx, offset wordBuffer ;àäðåñ áóôåðà ñ äàííûìè
+        int 21h
+        close:
+        mov ah, 3Eh ;ôóíêöèÿ çàêðûòèÿ ôàéëà
+        mov bx, fd ;ôàéëîâûé äåñêðèïòîð
+        int 21h
 ret
 ;==============================================================
 ;==============================================================
-process_buffer: ; обработка буфера со считанными данными
-pusha
-xor si, si
+process_buffer: ; îáðàáîòêà áóôåðà ñî ñ÷èòàííûìè äàííûìè
+        pusha
+        xor si, si
+        process_buffer_loop:
+                mov al, [buffer + si] ; â al î÷åðåäíîé ñèìâîë áóôåðà
+                mov di, lastWordBuffer ; ïîñëåäíåå ñëîâî
+                mov [wordBuffer + di], al ; ïîìåùàåì â íîâûé áóôåð ñèìâîë ñòðîêè
+                inc di
+                mov lastWordBuffer, di ; çàïîìèíàåì ñèìâîë, ÷òîáû ïîäîáðàòüñÿ ê ïîñëåäíåìó ñèìâîëó
 
-process_buffer_loop:
+                call check_border
+                cmp bx, 1
+                jne process_buffer_loop_end
 
-mov al, [buffer + si] ; в al очередной символ буфера
+                call check_word
 
-mov di, lastWordBuffer ; последнее слово
-mov [wordBuffer + di], al ; помещаем в новый буффер символ строки
-inc di
-mov lastWordBuffer, di ; запоминаем символ, чтобы подобраться к последнему символу
+                cmp al, 13
+                jne process_buffer_loop_end
+                mov wordCounter, 0
 
-call check_border ;сравниваем, не конец ли строки или не пробел ли
-cmp bx, 1 ;если что-то из вышеперечисленного
-jne process_buffer_loop_end ;если ничего из этого
-
-call check_word
-
-cmp al, 13
-jne process_buffer_loop_end
-mov wordCounter, 0
-
-process_buffer_loop_end:
-inc si
-cmp si, bufferLast; сравниваем с числом считанных байт
-jb process_buffer_loop; если не дошли до конца строки то продолжаем
-
-popa
+        process_buffer_loop_end:
+        inc si
+        cmp si, bufferLast; ñðàâíèâàåì ñ ÷èñëîì ñ÷èòàííûõ áàéò
+        jb process_buffer_loop; åñëè íå äîøëè äî êîíöà ñòðîêè òî ïðîäîëæàåì
+        popa
 ret
 ;==============================================================
 ;==============================================================
-check_border:
-;al - char
-mov bx, 1;separator flag
+check_border:; ñèìâîë â al
+        mov bx, 1
 
-cmp al, ' '
-je check_border_exit
+        cmp al, ' '
+        je check_border_exit
 
-cmp al, 13 ;/n
-je check_border_exit
+        cmp al, 13 ;/n
+        je check_border_exit
 
-cmp al, '.'
-je check_border_exit
+        cmp al, '.'
+        je check_border_exit
 
-cmp al, ','
-je check_border_exit
+        cmp al, ','
+        je check_border_exit
+        
+        cmp al, 10
+        je check_border_exit
 
-cmp al, 10;/r
-je check_border_exit
+        mov bx, 0
 
-mov bx, 0
-
-check_border_exit:
+        check_border_exit:
 ret
 ;==============================================================
 ;==============================================================
 check_word:
-mov bx, lastWordBuffer
-dec bx ;становимся на последний символ слова
-cmp bx, 0; если ниже или равно (CF = 1 или ZF = 1)
-jbe check_word_end
+        mov bx, lastWordBuffer
+        dec bx ;ñòàíîâèìñÿ íà ïîñëåäíèé ñèìâîë ñëîâà
+        cmp bx, 0; åñëè íèæå èëè ðàâíî
+        jbe check_word_end
 
-mov bx, wordCounter; cчётчик слов
-inc bx
-mov wordCounter, bx ; увеличили счетчик слов  
+        mov bx, wordCounter; c÷¸ò÷èê ñëîâ
+        inc bx
+        mov wordCounter, bx ; óâåëè÷èëè ñ÷åò÷èê ñëîâ  
 
-cmp bx, wordNumber ;номер слова, которое надо удалить из строки
-jne check_word_end ; если счётчик слова не равен номеру слова в строке, то завершаем проц
+        cmp bx, wordNumber ; íîìåð ñëîâà, êîòîðîå íàäî óäàëèòü èç ñòðîêè
+        jne check_word_end ; åñëè ñ÷¸ò÷èê ñëîâà íå ðàâåí íîìåðó ñëîâà â ñòðîêå, òî âûõîäèì  
+        
+        ;---------- îáíóëåíèå ñ÷¸ò÷èêà, ÷òîáû óäàëÿëîñü êàæäîå N-å ñëîâî â ñòðîêå       
+        push bx
+        mov bx, 0
+        mov wordCounter, bx
+        pop bx
+        ;----------
 
-mov di, lastWordBuffer ;индекс после последнего символа слова
-dec di ;индекс последнего символа слова
-mov bl, [wordBuffer + di] ;перемещаем символ по этому индексу в начало wordb
-mov [wordBuffer], bl
-mov lastWordBuffer, 1
+        mov di, lastWordBuffer ; èíäåêñ ïîñëå ïîñëåäíåãî ñèìâîëà ñëîâà 
+        
+        ;---------- ïðîâåðêà íà NUL â êîíöå ôàéëà
+        cmp di, 00h    
+        je check_word_end
+        ;----------     
+        
+        dec di ; èíäåêñ ïîñëåäíåãî ñèìâîëà ñëîâà
+        mov bl, [wordBuffer + di] ; ïåðåìåùàåì ñèìâîë ïî ýòîìó èíäåêñó â íà÷àëî wordb
+        mov [wordBuffer], bl
+        mov lastWordBuffer, 1
 
-check_word_end:
-call print_to_file
+        check_word_end:
+        call print_to_file
 ret
 ;==============================================================
 ;==============================================================
-print_to_file:
-;записать в файл и очистить слово
-pusha
+print_to_file:; çàïèñàòü â ôàéë è î÷èñòèòü ñëîâî
+        pusha
 ;-----------------------------------------------
-mov ah, 42h ; переместить указатель чтения-записи
-mov cx, word ptr [offset writePointer] ; смещение
-mov dx, word ptr [offset writePointer + 2]
-mov al, 0 ;от начала файла
-mov bx, fd ; дескриптор
-int 21h
+        mov ah, 42h ; ïåðåìåñòèòü óêàçàòåëü ÷òåíèÿ-çàïèñè
+        mov cx, word ptr [offset writePointer] ; ñìåùåíèå
+        mov dx, word ptr [offset writePointer + 2]
+        mov al, 0 ;îò íà÷àëà ôàéëà
+        mov bx, fd ; äåñêðèïòîð
+        int 21h
 ;-----------------------------------------------
-mov ah, 40h ;запись в файл или устройство
-mov cx, lastWordBuffer; число байтов для записи
-mov bx, fd; дескриптор
-mov dx, offset wordBuffer ;адрес буффера с данными
-int 21h
+        mov ah, 40h ;çàïèñü â ôàéë èëè óñòðîéñòâî
+        mov cx, lastWordBuffer; ÷èñëî áàéòîâ äëÿ çàïèñè
+        mov bx, fd; äåñêðèïòîð
+        mov dx, offset wordBuffer ;àäðåñ áóôôåðà ñ äàííûìè
+        int 21h
 ;-----------------------------------------------
-mov ax, lastWordBuffer ; перенос указателя чтения-записи
-mov cx, word ptr [offset writePointer]
-mov dx, word ptr [offset writePointer + 2]
-add dx, ax
-adc cx, 0
-mov word ptr [offset writePointer], cx
-mov word ptr [offset writePointer + 2], dx
+        mov ax, lastWordBuffer ; ïåðåíîñ óêàçàòåëÿ ÷òåíèÿ-çàïèñè
+        mov cx, word ptr [offset writePointer]
+        mov dx, word ptr [offset writePointer + 2]
+        add dx, ax
+        adc cx, 0
+        mov word ptr [offset writePointer], cx
+        mov word ptr [offset writePointer + 2], dx
 
-mov lastWordBuffer, 0
-
-popa
+        mov lastWordBuffer, 0
+        popa
 ret
 ;==============================================================
 ;==============================================================
-;first - result code, second - string start, third - 16-bit number address
 atoi:
-push bp
-mov bp, sp
-pusha
-mov di, [ss:bp+4+2]
+        push bp
+        mov bp, sp
+        pusha
+        
+        mov di, [ss:bp+4+2]
 
-xor bx, bx
-xor ax, ax
-xor cx, cx
-xor dx, dx
+        xor bx, bx
+        xor ax, ax
+        xor cx, cx
+        xor dx, dx
 
-cmp byte ptr [di + bx], '-'
-jne atoi_loop
+        cmp byte ptr [di + bx], '-'
+        jne atoi_loop
 
-inc cx; set negative after loop
-inc bx
+        inc cx; óñòàíîâèòü ôëàã îòðèöàòåëüíîãî ÷èñëà
+        inc bx
+        jmp atoi_result
 
-;парсить до ошибки
-atoi_loop:
+        ;ïàðñèòü äî îøèáêè
+        atoi_loop:
 
-cmp byte ptr [di + bx], '0' ;проверка на то, является ли числом вводимое значение
-jb atoi_error; если ниже
-cmp byte ptr [di + bx], '9'
-ja atoi_error; если выше
+        cmp byte ptr [di + bx], '0' 
+        jb atoi_error; åñëè íèæå
+        cmp byte ptr [di + bx], '9'
+        ja atoi_error; åñëè âûøå
 
-mul base ;умножаем на 10
-mov dh, 0
-mov dl, [di + bx]
-sub dl, '0' ;преващаем в число, отнимая ascii код 0
-add ax, dx ;добавляем к основному числу
-jo atoi_error ;если был поднят флаг переполнения, то выводим ошибку
+        mul base; óìíîæàåì íà 10
+        mov dh, 0
+        mov dl, [di + bx]
+        sub dl, '0'
+        add ax, dx; äîáàâëÿåì ê îñíîâíîìó ÷èñëó
+        jo atoi_error; åñëè åñòü ïåðåïîëíåíèå
 
-inc bx
-cmp byte ptr [di + bx], 0 ;если переполнения не было и строка не закончилась, то продолжаем, пока не конец
-jne atoi_loop
+        inc bx
+        cmp byte ptr [di + bx], 0; åñëè ïåðåïîëíåíèÿ íå áûëî è ñòðîêà íå çàêîí÷èëàñü, òî ïðîäîëæàåì, ïîêà íå êîíåö
+        jne atoi_loop
 
-jmp atoi_result
+        jmp atoi_result
 
-atoi_error: ;ошибка, выход и процедуры
-mov byte ptr [ss:bp+4+4], 1
-jmp atoi_end
+        atoi_error:; îøèáêà, âûõîä è ïðîöåäóðû
+        mov byte ptr [ss:bp+4+4], 1
+        jmp atoi_end
 
-atoi_result:
-mov byte ptr [ss:bp+4+4], 0 ;без ошибок
-cmp cx, 1 ;проверяем, был ли минус перед числом
-jne atoi_end ;если нет, то завершаем программу
-neg ax ; если нет, то меняем знак на противоположный
+        atoi_result:
+        mov byte ptr [ss:bp+4+4], 0 ;áåç îøèáîê
+        cmp cx, 1 ;ïðîâåðÿåì, áûë ëè ìèíóñ ïåðåä ÷èñëîì
+        jne atoi_end ;åñëè íåò, òî çàâåðøàåì ïðîãðàììó
+        neg ax ; åñëè áûë, òî ìåíÿåì çíàê íà ïðîòèâîïîëîæíûé
 
-atoi_end:
-mov di, [ss:bp+4+0]
-mov [di], ax ;помещаем число по заданному адресу
+        atoi_end:
+        mov di, [ss:bp+4+0]
+        mov [di], ax ;ïîìåùàåì ÷èñëî ïî çàäàííîìó àäðåñó
 
-popa ;завершаем процедуру
-pop bp
+        popa ;çàâåðøàåì ïðîöåäóðó
+        pop bp
 ret
-;==============================================================
 ;==============================================================
 end main
