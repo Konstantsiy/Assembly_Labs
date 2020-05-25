@@ -6,10 +6,6 @@
         bufferSize equ 126
         buffer db bufferSize dup('$')
         bufferLast dw 0  
-        
-        bufferForNUL db 3 dup('$') 
-        
-        insteadNUL dw 1 dup('')
 
         sizeWordBuffer equ 50
         wordBuffer db sizeWordBuffer + 1 dup('$')
@@ -109,7 +105,7 @@ parsed_number:
         cmp ax, 1
         je incorrectNumber
 
-        cmp wordNumber, 1; åñëè ÷èñëî îòðèöàòåëüíîå
+        cmp wordNumber, 1; åñëè ÷èñëî <= 0
         jl incorrectNumber 
         _print goodPathValidation
         call process_file
@@ -180,8 +176,6 @@ read_file_buffer:
 close_file:
         ; ïðîâåðÿåì áóôåð
         call check_word
-        jmp next 
-        next:
         mov ah, 40h ;çàïèñü â ôàéë
         mov cx, 0 ;êîë-âî áàéò äëÿ çàïèñè
         mov bx, fd ;èäåíòèôèêàòîð ôàéëà
@@ -232,6 +226,12 @@ check_border:; ñèìâîë â al
         je check_border_exit
 
         cmp al, '.'
+        je check_border_exit 
+        
+        cmp al, '!'
+        je check_border_exit
+        
+        cmp al, '?'
         je check_border_exit
 
         cmp al, ','
