@@ -64,11 +64,12 @@ errorProgExecIndicate:
         
     
 endOfProgram:
-    int 20h
+    mov ah, 4ch
+    int 21h
 ;########################################
-EPB                 dw 0000
-                    dw offset cmdSize, 0
-                    dw 005Ch, 006Ch
+EPB                 dw 0000; С‚РµРєСѓС‰РµРµ РѕРєСЂСѓР¶РµРЅРё
+                    dw offset cmdSize, 0; Р°РґСЂРµСЃ РєРѕРј СЃС‚СЂРѕРєРё
+                    dw 005Ch, 006Ch; Р°РґСЂРµСЃР° FCB (File Control Block) РїСЂРѕРіСЂР°РјРјС‹
                     dd ?                   
 cmdSize             db 0
 cmdText             db 126 dup (?) 
@@ -95,13 +96,13 @@ CmdParse proc; output: text_file_path - program path
     push bx
     push cx
     xor ah, ah
-    mov al, byte ptr ds:[80h]; в al длина ком строки 
+    mov al, byte ptr ds:[80h]; РІ al РґР»РёРЅР° РєРѕРј СЃС‚СЂРѕРєРё 
     cmp al, 0
     je cmdParseError
 
     xor ch, ch
-    mov cl, al; в cl длина ком строки
-    mov di, 81h; в di начало ком строки
+    mov cl, al; РІ cl РґР»РёРЅР° РєРѕРј СЃС‚СЂРѕРєРё
+    mov di, 81h; РІ di РЅР°С‡Р°Р»Рѕ РєРѕРј СЃС‚СЂРѕРєРё
     call FileNameParse
     jc cmdParseError
 
@@ -121,22 +122,22 @@ FileNameParse proc;
     push ax
     push si
     mov al, ' '; 
-    repe scasb; ищем первый байт, отличный от пробела (пропускаем все пробелы в ком строке)
-    cmp cx, 0; если в ком строке были одни пробелы
+    repe scasb; РёС‰РµРј РїРµСЂРІС‹Р№ Р±Р°Р№С‚, РѕС‚Р»РёС‡РЅС‹Р№ РѕС‚ РїСЂРѕР±РµР»Р° (РїСЂРѕРїСѓСЃРєР°РµРј РІСЃРµ РїСЂРѕР±РµР»С‹ РІ РєРѕРј СЃС‚СЂРѕРєРµ)
+    cmp cx, 0; РµСЃР»Рё РІ РєРѕРј СЃС‚СЂРѕРєРµ Р±С‹Р»Рё РѕРґРЅРё РїСЂРѕР±РµР»С‹
     je fileNameParseEmptyError
     dec di
     inc cx
     push di
     mov si, di
     mov di, offset textFilePath
-    rep movsb; копируем байты из si в di
+    rep movsb; РєРѕРїРёСЂСѓРµРј Р±Р°Р№С‚С‹ РёР· si РІ di
     jmp fileNameParseEnd
     
-    fileNameParseEmptyError:; если в ком строке были одни пробелы
+    fileNameParseEmptyError:; РµСЃР»Рё РІ РєРѕРј СЃС‚СЂРѕРєРµ Р±С‹Р»Рё РѕРґРЅРё РїСЂРѕР±РµР»С‹
     push di    
     
     fileNameParseError:
-    stc; устанавливаем флаг CF для ошибки  
+    stc; СѓСЃС‚Р°РЅР°РІР»РёРІР°РµРј С„Р»Р°Рі CF РґР»СЏ РѕС€РёР±РєРё  
     
     fileNameParseEnd:
     pop di
@@ -170,7 +171,7 @@ CharCheck proc; buf - char, di - dest
         inc cmdSize
         mov al, buffer
         mov flag, 0 
-        needSpace:; запись символов перед пробелом (имя файла)
+        needSpace:; Р·Р°РїРёСЃСЊ СЃРёРјРІРѕР»РѕРІ РїРµСЂРµРґ РїСЂРѕР±РµР»РѕРј (РёРјСЏ С„Р°Р№Р»Р°)
                 stosb; al -> di++
                 mov al, 0Dh
                 stosb
@@ -187,7 +188,7 @@ CharCheck proc; buf - char, di - dest
 endp
 ;======================================
 ;======================================
-LineProcessing proc; обработка новой строки
+LineProcessing proc; РѕР±СЂР°Р±РѕС‚РєР° РЅРѕРІРѕР№ СЃС‚СЂРѕРєРё
     push ax
     push dx
     push cx
@@ -204,24 +205,24 @@ LineProcessing proc; обработка новой строки
     ;----------------
     mov flag, 1 
     
-    mov si, cx; сохраняем номер строки в si
+    mov si, cx; СЃРѕС…СЂР°РЅСЏРµРј РЅРѕРјРµСЂ СЃС‚СЂРѕРєРё РІ si
     dec si        
-    mov bx, ax; дескриптор файла
-    mov cx, 1; число байт для чтения
+    mov bx, ax; РґРµСЃРєСЂРёРїС‚РѕСЂ С„Р°Р№Р»Р°
+    mov cx, 1; С‡РёСЃР»Рѕ Р±Р°Р№С‚ РґР»СЏ С‡С‚РµРЅРёСЏ
     mov ah, 3Fh
-    mov dx, offset buffer; буфер для чтения
+    mov dx, offset buffer; Р±СѓС„РµСЂ РґР»СЏ С‡С‚РµРЅРёСЏ
     
-    cmp si, 0; если первая по счёту строка
+    cmp si, 0; РµСЃР»Рё РїРµСЂРІР°СЏ РїРѕ СЃС‡С‘С‚Сѓ СЃС‚СЂРѕРєР°
     je processCurrentLine    
 
-    lineApproach:; добираемся до строки, на которой остановились на предыдущей итерации
+    lineApproach:; РґРѕР±РёСЂР°РµРјСЃСЏ РґРѕ СЃС‚СЂРѕРєРё, РЅР° РєРѕС‚РѕСЂРѕР№ РѕСЃС‚Р°РЅРѕРІРёР»РёСЃСЊ РЅР° РїСЂРµРґС‹РґСѓС‰РµР№ РёС‚РµСЂР°С†РёРё
         mov ah, 3Fh
-        int 21h; ЧИТАЕМ БАЙТ ИЗ ФАЙЛА 
+        int 21h; Р§РРўРђР•Рњ Р‘РђР™Рў РР— Р¤РђР™Р›Рђ 
         
-        cmp ax, 0; если ничего не прочиталось
+        cmp ax, 0; РµСЃР»Рё РЅРёС‡РµРіРѕ РЅРµ РїСЂРѕС‡РёС‚Р°Р»РѕСЃСЊ
         je emptyFileErrorIndicate  
         
-        cmp buffer, 0Ah; сравнение с \n
+        cmp buffer, 0Ah; СЃСЂР°РІРЅРµРЅРёРµ СЃ \n
         jne lineApproach
         
         dec si
@@ -229,7 +230,7 @@ LineProcessing proc; обработка новой строки
         je processCurrentLine
         jmp lineApproach
     
-    processCurrentLine:; обработка строки, на которую указывал cx
+    processCurrentLine:; РѕР±СЂР°Р±РѕС‚РєР° СЃС‚СЂРѕРєРё, РЅР° РєРѕС‚РѕСЂСѓСЋ СѓРєР°Р·С‹РІР°Р» cx
         mov ah, 3Fh
         int 21h
         
@@ -250,7 +251,6 @@ LineProcessing proc; обработка новой строки
         jmp parseWithoutErrors
 
     emptyFileErrorIndicate: 
-        _print emptyFileError
         jmp closeFileWithErrors
         
     openingFileErrorIndicate:
@@ -273,7 +273,7 @@ LineProcessing proc; обработка новой строки
         stc
         jmp endAfterCloseFile 
         
-    parseWithoutErrors:; ЗАКРЫТИЕ ФАЙЛА
+    parseWithoutErrors:; Р—РђРљР Р«РўРР• Р¤РђР™Р›Рђ
          mov ah, 3Eh
          int 21h   
          
@@ -312,9 +312,3 @@ ArgumentsParse proc;
 endp
 
 end start
-
-
-
-
-
-
