@@ -24,28 +24,29 @@ _print      macro str
 endm
 ;========================================
 emul_1B macro
-    cmp al, 2Eh; скан-код 'C'
+    cmp al, 2Eh; СЃРєР°РЅ-РєРѕРґ 'C'
     jne handle_15_skip
     push ax
     mov ah, 02h
-    int 16h; считать состояние клавиш - получаем флаги клавиатуры
+    int 16h; СЃС‡РёС‚Р°С‚СЊ СЃРѕСЃС‚РѕСЏРЅРёРµ РєР»Р°РІРёС€ - РїРѕР»СѓС‡Р°РµРј С„Р»Р°РіРё РєР»Р°РІРёР°С‚СѓСЂС‹
     and al, 100b
-    cmp al, 100b; 2-й бит - нажата ли люба клавиша Ctrl
+    cmp al, 100b; 2-Р№ Р±РёС‚ - РЅР°Р¶Р°С‚Р° Р»Рё Р»СЋР±Р° РєР»Р°РІРёС€Р° Ctrl
     pop ax
     jne handle_15_skip
 
     mov flag, 0
 endm
 ;===============================
-handle_15 proc; is called by 09h, al - scancode
+handle_15 proc; 
     push ds
     pushf
     call cs:int_15
     jc handle_15_fine
-    jmp handle_15_end
+    jmp handle_15_end 
+    
     handle_15_fine:
     push ax
-    and al, 128; 10000000 - if bit 7 is 1, it's key release scancode
+    and al, 128; 10000000 
     cmp al, 128
     pop ax
     je handle_15_skip
@@ -55,11 +56,13 @@ handle_15 proc; is called by 09h, al - scancode
     emul_1B
 
     handle_15_skip:
-    stc
+    stc     
     jmp handle_15_end
+    
     handle_15_not_c:
     clc
     jmp handle_15_end
+    
     handle_15_end:
     pop ds
     iret
@@ -70,25 +73,25 @@ handle_1B proc
     iret
 endp
 ;===============================
-parce_command_line proc; c set on error
+parce_command_line proc
     push bx
     push cx
     xor ah, ah
     mov al, byte ptr ds:[80h]
     cmp al, 0
-    je parce_command_line_error
+    je parce_error
 
     xor ch, ch
     mov cl, al
-    mov di, 81h; начало ком строки
+    mov di, 81h; РЅР°С‡Р°Р»Рѕ РєРѕРј СЃС‚СЂРѕРєРё
     call store_file_name
-    jc parce_command_line_error
-    jmp parce_command_line_end 
+    jc parce_error
+    jmp parce_end 
     
-    parce_command_line_error:
+    parce_error:
     stc
     
-    parce_command_line_end:
+    parce_end:
     pop cx
     pop bx
     ret
@@ -98,24 +101,24 @@ store_file_name proc
     push ax
     push si
     mov al, ' '
-    repe scasb; пропускаем пробелы
+    repe scasb; РїСЂРѕРїСѓСЃРєР°РµРј РїСЂРѕР±РµР»С‹
     cmp cx, 0
-    je file_name_empty; если только пробелы
+    je file_name_empty; РµСЃР»Рё С‚РѕР»СЊРєРѕ РїСЂРѕР±РµР»С‹
     dec di
     inc cx
     push di
     mov si, di
     mov di, offset filePath
-    rep movsb; переписываем имя файла
-    jmp store_file_name_end
+    rep movsb; РїРµСЂРµРїРёСЃС‹РІР°РµРј РёРјСЏ С„Р°Р№Р»Р°
+    jmp store_end
     
     file_name_empty:
     push di        
     
-    store_file_name_error:
+    store_error:
     stc      
     
-    store_file_name_end:
+    store_end:
     pop di
     pop si
     pop ax
@@ -161,21 +164,21 @@ main:
         mov cx, 1
         mov dx, offset buf
         mov ah, 3Fh
-        int 21h; читаем символ из файла
+        int 21h; С‡РёС‚Р°РµРј СЃРёРјРІРѕР» РёР· С„Р°Р№Р»Р°
         jc main_loop_end
         cmp ax, 0
         je main_loop_end
         
         mov dl, buf
-        mov ah, 02h; функция вывода символа
+        mov ah, 02h; С„СѓРЅРєС†РёСЏ РІС‹РІРѕРґР° СЃРёРјРІРѕР»Р°
         
         main_loop_wait:
-        cmp flag, 0; ждём
+        cmp flag, 0; Р¶РґС‘Рј
         je main_loop_wait
 
-        int 21h; выводим символ
+        int 21h; РІС‹РІРѕРґРёРј СЃРёРјРІРѕР»
 
-        mov cx, 0; задержка
+        mov cx, 0
         mov dx, 1h
         mov ah, 86h
         int 15h
@@ -183,7 +186,7 @@ main:
         jmp main_loop
     
     main_loop_end:
-    mov ah, 3Eh; close file
+    mov ah, 3Eh; Р·Р°РєСЂС‹С‚РёРµ С„Р°Р№Р»Р°
     mov bx, offset fd
     int 21h
 
@@ -211,7 +214,7 @@ main:
     _print errorMessage
 
     _end:
-    mov ax, 4C00h
+    mov ax, 4c00h
     int 21h
 
 end start
