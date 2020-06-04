@@ -8,9 +8,9 @@ start:
     int_1B          dd ?
     int_15          dd ?
     flag            db ?
-    error_message   db "Error", 0Dh, 0Ah, '$'
-    file_path       db 125 dup (0)
-    file_handle     dw ?
+    errorMessage    db "Error", 0Dh, 0Ah, '$'
+    filePath        db 125 dup (0)
+    fd              dw ?
     buf             db ?
 ;========================================
 _print      macro str  
@@ -24,15 +24,15 @@ _print      macro str
 endm
 ;========================================
 emul_1B macro
-    cmp al, 2Eh
-    jne handle_15_not_interested
+    cmp al, 2Eh; ñêàí-êîä 'C'
+    jne handle_15_skip
     push ax
     mov ah, 02h
     int 16h; ñ÷èòàòü ñîñòîÿíèå êëàâèø - ïîëó÷àåì ôëàãè êëàâèàòóðû
     and al, 100b
     cmp al, 100b; 2-é áèò - íàæàòà ëè ëþáà êëàâèøà Ctrl
     pop ax
-    jne handle_15_not_interested
+    jne handle_15_skip
 
     mov flag, 0
 endm
@@ -40,30 +40,26 @@ endm
 handle_15 proc; is called by 09h, al - scancode
     push ds
     pushf
-    cmp ah, 4Fh
-    jne not_mine
     call cs:int_15
-    jc handle_15_fine; c set if handling is needed
+    jc handle_15_fine
     jmp handle_15_end
     handle_15_fine:
     push ax
     and al, 128; 10000000 - if bit 7 is 1, it's key release scancode
     cmp al, 128
     pop ax
-    je handle_15_not_interested
+    je handle_15_skip
 
     mov flag, 1
 
     emul_1B
 
-    handle_15_not_interested:
+    handle_15_skip:
     stc
     jmp handle_15_end
     handle_15_not_c:
     clc
     jmp handle_15_end
-    not_mine:
-    call cs:int_15
     handle_15_end:
     pop ds
     iret
@@ -104,16 +100,16 @@ store_file_name proc
     mov al, ' '
     repe scasb; ïðîïóñêàåì ïðîáåëû
     cmp cx, 0
-    je store_file_name_start_error; åñëè òîëüêî ïðîáåëû
+    je file_name_empty; åñëè òîëüêî ïðîáåëû
     dec di
     inc cx
     push di
     mov si, di
-    mov di, offset file_path
+    mov di, offset filePath
     rep movsb; ïåðåïèñûâàåì èìÿ ôàéëà
     jmp store_file_name_end
     
-    store_file_name_start_error:
+    file_name_empty:
     push di        
     
     store_file_name_error:
@@ -133,11 +129,10 @@ main:
 
     mov ah, 3Dh        
     mov al, 00h
-    ;mov al, 0100000b
-    mov dx, offset file_path
+    mov dx, offset filePath
     int 21h
     jc error
-    mov file_handle, ax
+    mov fd, ax
     
     mov ah, 35h
     mov al, 15h
@@ -161,7 +156,7 @@ main:
     mov dx, offset handle_1B
     int 21h
 
-    mov bx, file_handle
+    mov bx, fd
     main_loop:
         mov cx, 1
         mov dx, offset buf
@@ -188,8 +183,8 @@ main:
         jmp main_loop
     
     main_loop_end:
-    mov ah, 3Eh
-    mov bx, offset file_handle
+    mov ah, 3Eh; close file
+    mov bx, offset fd
     int 21h
 
     mov ah, 25h
@@ -213,7 +208,7 @@ main:
     jmp _end
 
     error:
-    _print error_message
+    _print errorMessage
 
     _end:
     mov ax, 4C00h
