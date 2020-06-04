@@ -28,9 +28,9 @@ emul_1B macro
     jne handle_15_not_interested
     push ax
     mov ah, 02h
-    int 16h; считать состояние клавиш - получаем флаги клавиатуры
+    int 16h; Г±Г·ГЁГІГ ГІГј Г±Г®Г±ГІГ®ГїГ­ГЁГҐ ГЄГ«Г ГўГЁГё - ГЇГ®Г«ГіГ·Г ГҐГ¬ ГґГ«Г ГЈГЁ ГЄГ«Г ГўГЁГ ГІГіГ°Г»
     and al, 100b
-    cmp al, 100b; 2-й бит - нажата ли люба клавиша Ctrl
+    cmp al, 100b; 2-Г© ГЎГЁГІ - Г­Г Г¦Г ГІГ  Г«ГЁ Г«ГѕГЎГ  ГЄГ«Г ГўГЁГёГ  Ctrl
     pop ax
     jne handle_15_not_interested
 
@@ -84,7 +84,7 @@ parce_command_line proc; c set on error
 
     xor ch, ch
     mov cl, al
-    mov di, 81h; начало ком строки
+    mov di, 81h; Г­Г Г·Г Г«Г® ГЄГ®Г¬ Г±ГІГ°Г®ГЄГЁ
     call store_file_name
     jc parce_command_line_error
     jmp parce_command_line_end 
@@ -102,15 +102,15 @@ store_file_name proc
     push ax
     push si
     mov al, ' '
-    repe scasb; пропускаем пробелы
+    repe scasb; ГЇГ°Г®ГЇГіГ±ГЄГ ГҐГ¬ ГЇГ°Г®ГЎГҐГ«Г»
     cmp cx, 0
-    je store_file_name_start_error; если только пробелы
+    je store_file_name_start_error; ГҐГ±Г«ГЁ ГІГ®Г«ГјГЄГ® ГЇГ°Г®ГЎГҐГ«Г»
     dec di
     inc cx
     push di
     mov si, di
     mov di, offset file_path
-    rep movsb; переписываем имя файла
+    rep movsb; ГЇГҐГ°ГҐГЇГЁГ±Г»ГўГ ГҐГ¬ ГЁГ¬Гї ГґГ Г©Г«Г 
     jmp store_file_name_end
     
     store_file_name_start_error:
@@ -166,21 +166,21 @@ main:
         mov cx, 1
         mov dx, offset buf
         mov ah, 3Fh
-        int 21h; читаем символ из файла
+        int 21h; Г·ГЁГІГ ГҐГ¬ Г±ГЁГ¬ГўГ®Г« ГЁГ§ ГґГ Г©Г«Г 
         jc main_loop_end
         cmp ax, 0
         je main_loop_end
         
         mov dl, buf
-        mov ah, 02h; функция вывода символа
+        mov ah, 02h; ГґГіГ­ГЄГ¶ГЁГї ГўГ»ГўГ®Г¤Г  Г±ГЁГ¬ГўГ®Г«Г 
         
         main_loop_wait:
-        cmp flag, 0; ждём
+        cmp flag, 0; Г¦Г¤ВёГ¬
         je main_loop_wait
 
-        int 21h; выводим символ
+        int 21h; ГўГ»ГўГ®Г¤ГЁГ¬ Г±ГЁГ¬ГўГ®Г«
 
-        mov cx, 0; задержка
+        mov cx, 0; Г§Г Г¤ГҐГ°Г¦ГЄГ 
         mov dx, 1h
         mov ah, 86h
         int 15h
@@ -188,7 +188,7 @@ main:
         jmp main_loop
     
     main_loop_end:
-    mov ah, 3Eh; close file
+    mov ah, 3Eh
     mov bx, offset file_handle
     int 21h
 
