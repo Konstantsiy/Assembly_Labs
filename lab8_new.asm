@@ -37,7 +37,7 @@ emul_1B macro
     mov flag, 0
 endm
 ;===============================
-handle_15 proc; 
+handle_15 proc; is called by 09h, al - scancode
     push ds
     pushf
     call cs:int_15
@@ -46,14 +46,14 @@ handle_15 proc;
     
     handle_15_fine:
     push ax
-    and al, 128; 10000000 
+    and al, 128; проверяем 7-й бит
     cmp al, 128
     pop ax
     je handle_15_skip
 
     mov flag, 1
 
-    emul_1B
+    ;emul_1B
 
     handle_15_skip:
     stc     
@@ -70,6 +70,7 @@ endp
 ;===============================
 handle_1B proc
     mov flag, 0
+    clc
     iret
 endp
 ;===============================
@@ -144,7 +145,7 @@ main:
     mov word ptr int_15 + 2, es
 
     mov ah, 35h
-    mov al, 1Bh
+    mov al, 23h
     int 21h
     mov word ptr int_1B, bx
     mov word ptr int_1B + 2, es
@@ -155,7 +156,7 @@ main:
     int 21h
 
     mov ah, 25h
-    mov al, 1Bh
+    mov al, 23h
     mov dx, offset handle_1B
     int 21h
 
@@ -178,7 +179,7 @@ main:
 
         int 21h; выводим символ
 
-        mov cx, 0
+        mov cx, 1
         mov dx, 1h
         mov ah, 86h
         int 15h
@@ -200,7 +201,7 @@ main:
     pop ds
 
     mov ah, 25h
-    mov al, 1Bh
+    mov al, 23h
     push ds
     push int_1B + 2
     mov dx, word ptr [int_1B]
